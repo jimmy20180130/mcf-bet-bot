@@ -72,7 +72,7 @@ class BetService {
                 await paymentService.epay(task.playerId, returnAmount);
 
                 // [11:11:11] &c[ADMIN] &f&lJimmy4Real &r&f贏得了 &6&l100,000,000,000 &f個&a綠寶石 &7(&f賠率: &e1.85+1&7)
-                this.bot.chat(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix} &b&l${task.playerId} &c&l中獎 &6${addCommas(task.amount)} &7-> &6&l${addCommas(returnAmount)} &a綠寶石 &7(&e1.85${task.userRank ? `+${task.userRank.bonusOdds}` : ''}&7)`);
+                this.bot.chat(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l中獎 &6${addCommas(task.amount)} &7-> &6&l${addCommas(returnAmount)} &a綠寶石 &7(&e1.85${task.userRank ? `+${task.userRank.bonusOdds}` : ''}&7)`);
             } else if (result === 'lose') {
                 returnAmount = 0;
                 await this._logBetResult(task, 'lose', {
@@ -282,7 +282,7 @@ async function validatePlayerAndBlacklist({ bot, playerId, amount, currency }) {
         return null;
     } else if (blacklistInfo.result && blacklistInfo.reason != 'NO_ACCEPT_EULA') {
         // 處理被封鎖且未通知的玩家
-        await bot.chat(`/m ${playerId} 您已被&c&l封鎖使用本機器人&f，&c&l若再轉帳則視為捐款&f，封鎖原因: &c&l${blacklistInfo.reason}&f，解封時間: &c&l${blacklistInfo.unbanTime == -1 ? '無限期' : new Date(blacklistInfo.unbanTime).toLocaleString('zh-TW', { hour12: false })}&f，如有疑問請洽管理員`);
+        await bot.chat(`/m ${playerId} 您已被&c&l封鎖使用本機器人&f，&c&l若再轉帳則視為捐款&f，封鎖原因: &c&l${ blacklistInfo.reason && blacklistInfo.reason != '' ? blacklistInfo.reason : '無' }&f，解封時間: &c&l${blacklistInfo.unbanTime == -1 ? '無限期' : new Date(blacklistInfo.unbanTime).toLocaleString('zh-TW', { hour12: false })}&f，如有疑問請洽管理員`);
 
         await blacklistService.updateBlacklistInfo(playerId, { notified: true });
 
