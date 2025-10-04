@@ -1,3 +1,5 @@
+// commands/minecraft/deposit.js
+
 const client = require('../../core/client')
 const pendingDeposits = new Map()
 
