@@ -2,6 +2,7 @@
 
 const client = require('../../core/client')
 const Logger = require('../../utils/logger');
+const { withErrorHandling } = require('../../utils/commandHandler');
 
 const pendingReloads = new Map();
 
@@ -30,7 +31,7 @@ module.exports = {
     description: '重新載入指令',
     usage: '/m bot reload <commandName|all>',
     requiredPermissionLevel: 2, // 測試用的
-    execute,
+    execute: withErrorHandling(execute),
 }
 
 async function execute(bot, playerId, args) {
