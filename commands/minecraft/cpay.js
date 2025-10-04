@@ -2,6 +2,7 @@
 
 const paymentService = require("../../services/paymentService");
 const { addCommas, removeCommas } = require("../../utils/format");
+const { withErrorHandling, validateNumber, validateRequired } = require("../../utils/commandHandler");
 
 module.exports = {
     name: 'cpay',
@@ -9,7 +10,7 @@ module.exports = {
     description: '轉帳村民錠給其他玩家',
     usage: '/m bot cpay <player> <amount>',
     requiredPermissionLevel: 1, // admin
-    execute,   
+    execute: withErrorHandling(execute),   
 }
 
 async function execute(bot, playerId, args) {
@@ -19,18 +20,9 @@ async function execute(bot, playerId, args) {
         return;
     }
 
-    const targetPlayer = parts[0];
-    const amount = parseInt(parts[1]);
+    const targetPlayer = validateRequired(parts[0], 'targetPlayer');
+    const amount = validateNumber(parts[1], '金額', { min: 1, integer: true });
 
-    if (isNaN(amount) || amount <= 0) {
-        bot.chat(`/m ${playerId} &c錯誤: 金額必須為正整數`);
-        return;
-    }
-
-    try {
-        const result = await paymentService.cpay(targetPlayer, amount);
-        bot.chat(`/m ${playerId} &f成功轉帳 &b${addCommas(result.amount)} &f個&6村民錠&f給 &b${result.player} &f(餘額: &b${addCommas(result.balance)}&f)`);
-    } catch (error) {
-        bot.chat(`/m ${playerId} &c轉帳失敗: ${error.message}`);
-    }
+    const result = await paymentService.cpay(targetPlayer, amount);
+    bot.chat(`/m ${playerId} &f成功轉帳 &b${addCommas(result.amount)} &f個&6村民錠&f給 &b${result.player} &f(餘額: &b${addCommas(result.balance)}&f)`);
 }
