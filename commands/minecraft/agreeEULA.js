@@ -8,7 +8,7 @@ const { withErrorHandling } = require('../../utils/commandHandler');
 module.exports = {
     name: 'agreeEULA',
     aliases: ['同意條款', 'acceptEULA', 'agreeEULA', '同意EULA'],
-    description: '這是一個範例指令',
+    description: '同意條款',
     usage: '/m bot agreeEULA',
     requiredPermissionLevel: 0, // default permission level
     execute: withErrorHandling(execute),   
@@ -28,5 +28,5 @@ async function execute(bot, playerId, args) {
     
     await blacklistService.updateBlacklistInfo(playerId, { notified: false, eula: true });
 
-    bot.chat(`/m ${playerId} &6您已同意 EULA 條款，現在可以正常使用本機器人`);
+    bot.chat(`/m ${playerId} &6您已同意 EULA，現在可以正常使用本機器人`);
 }
