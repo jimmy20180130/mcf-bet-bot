@@ -6,6 +6,7 @@ const rankService = require("../../services/rankService");
 const { addCommas } = require("../../utils/format");
 const userInfoService = require("../../services/userInfoService");
 const dailyRepository = require("../../repositories").dailyRepository;
+const userRepository = require("../../repositories").userRepository;
 const { withErrorHandling } = require("../../utils/commandHandler");
 const errorHandler = require("../../services/errorHandler");
 
@@ -46,13 +47,14 @@ async function execute(bot, playerId, args) {
     // 記錄簽到
     const claimSuccess = await dailyRepository.claimDaily(playerUUID);
     if (claimSuccess) {
-        // 發放獎勵 (假設這裡只發放綠寶石)
+        // 發放獎勵
         const emeraldAmount = dailyReward.emerald;
         const coinAmount = dailyReward.coin;
         let errorFlag = { emerald: false, coin: false };
+        
         if (emeraldAmount > 0) {
             await paymentService.epay(playerId, emeraldAmount)
-                .catch(err => {
+                .catch(async err => {
                     errorFlag.emerald = true;
                     errorHandler.handleError(err, { commandName: 'daily', playerId, action: 'epay獎勵' });
                 });
@@ -60,7 +62,7 @@ async function execute(bot, playerId, args) {
 
         if (coinAmount > 0) {
             await paymentService.cpay(playerId, coinAmount)
-                .catch(err => {
+                .catch(async err => {
                     errorFlag.coin = true;
                     errorHandler.handleError(err, { commandName: 'daily', playerId, action: 'cpay獎勵' });
                 });
@@ -70,7 +72,7 @@ async function execute(bot, playerId, args) {
             Logger.info(`[daily] ${playerId} 成功領取每日獎勵: ${addCommas(emeraldAmount)} 個綠寶石和 ${addCommas(coinAmount)} 個村民錠 [${dailyReward.rankName}]`);
             bot.chat(`/m ${playerId} 成功領取[${dailyReward.rankName}]的每日獎勵: &b${addCommas(emeraldAmount)} &f個&a綠寶石&f和 &b${addCommas(coinAmount)} &f個&6村民錠`);
         } else if ((errorFlag.coin || errorFlag.emerald) && (coinAmount > 0 || emeraldAmount > 0)) {
-            // TODO: 要加到錢包
+            // 發放失敗時已加到錢包
             bot.chat(
                 `/m ${playerId} 成功領取[${dailyReward.rankName}]的每日獎勵: ` +
                 `&b${addCommas(emeraldAmount)} &f個&a綠寶石${errorFlag.emerald ? ' &c(已加到錢包)' : ''}&f和 ` +
