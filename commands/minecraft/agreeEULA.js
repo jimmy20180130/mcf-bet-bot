@@ -3,6 +3,7 @@
 const userRepository = require('../../repositories').userRepository;
 const userinfoService = require('../../services/userInfoService');
 const blacklistService = require('../../services/blacklistService');
+const { withErrorHandling } = require('../../utils/commandHandler');
 
 module.exports = {
     name: 'agreeEULA',
@@ -10,17 +11,11 @@ module.exports = {
     description: '這是一個範例指令',
     usage: '/m bot agreeEULA',
     requiredPermissionLevel: 0, // default permission level
-    execute,   
+    execute: withErrorHandling(execute),   
 }
 
 async function execute(bot, playerId, args) {
-    let playerUUID
-    try {
-        playerUUID = await userinfoService.getMinecraftUUID(playerId);
-    } catch (error) {
-        bot.chat(`/m ${playerId} &c無法取得玩家資訊，請稍後再試`);
-        return;
-    }
+    const playerUUID = await userinfoService.getMinecraftUUID(playerId);
 
     let user = await userRepository.getUserByUUID(playerUUID);
     if (!user) {
