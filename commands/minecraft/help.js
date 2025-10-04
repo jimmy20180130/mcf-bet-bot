@@ -1,6 +1,7 @@
-const userinfoService = require('../../services/userinfoService');
+const userinfoService = require('../../services/userInfoService');
 const userRepository = require('../../repositories').userRepository;
 const client = require('../../core/client')
+const { withErrorHandling } = require('../../utils/commandHandler');
 
 module.exports = {
     name: 'help',
@@ -8,7 +9,7 @@ module.exports = {
     description: '顯示可用指令列表',
     usage: '/m bot help [command]',
     requiredPermissionLevel: 0, // default permission level
-    execute,
+    execute: withErrorHandling(execute),
 }
 
 async function execute(bot, playerId, args) {
@@ -71,9 +72,6 @@ async function getUserPermissions(playerId) {
     // if not, create a new user with default config
     // then check the user's permission level
     const playerUUID = await userinfoService.getMinecraftUUID(playerId);
-    if (!playerUUID) {
-        throw new Error('玩家資料取得失敗');
-    }
 
     // 用 uuid 而不是 playerid 辨認玩家
     let user = await userRepository.getUserByUUID(playerUUID);
