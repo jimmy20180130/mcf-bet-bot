@@ -1,6 +1,7 @@
 // commands/minecraft/money.js
 
 const { addCommas } = require('../../utils/format');
+const { withErrorHandling } = require('../../utils/commandHandler');
 
 module.exports = {
     name: 'money',
@@ -8,7 +9,7 @@ module.exports = {
     description: '查看目前 Bot 的餘額',
     usage: '/m bot money',
     requiredPermissionLevel: 1, // admin
-    execute,   
+    execute: withErrorHandling(execute),   
 }
 
 async function execute(bot, playerId, args) {
