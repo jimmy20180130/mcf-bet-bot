@@ -77,12 +77,6 @@ class BlacklistService {
         const playerUUID = await userinfoService.getMinecraftUUID(playerID);
         const userBlacklist = await this.isBlacklisted(playerID)
 
-        // if (eula === true) {
-        //     // 如果是同意 EULA，就把 blacklist 狀態還原
-        //     status = userBlacklist.originalStatus || false;
-        //     reason = userBlacklist.originalReason || null;
-        // }
-
         await userRepository.updateUser(playerUUID, {
             additionalInfo: {
                 blacklist: {
