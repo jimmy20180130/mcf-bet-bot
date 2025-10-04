@@ -1,0 +1,2 @@
+下注錯誤 -> 丟 errorhandler.handlebeterror -> 退款
+若退款失敗 -> 丟 errorhandler.handlepaymenterror

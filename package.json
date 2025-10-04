@@ -1,0 +1,14 @@
+{
+  "name": "mcf-bet-bot",
+  "module": "index.js",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "lmdb": "^3.4.2",
+    "mineflayer": "^4.33.0"
+  }
+}

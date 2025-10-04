@@ -1,0 +1,25 @@
+# 廢土對賭機器人進階設定檔
+# 以下區域不需填寫，請使用 Discord Bot 來設定
+[general]
+
+[ad]
+
+
+[bet]
+eodds = 1.85
+codds = 1.85
+eMax = 1000000
+eMin = 1
+cMax = 1000000
+cMin = 1
+redstoneDustPos = [1, 2, 3]
+
+[filter]
+public = false
+chat = false
+trade = true 
+lottery = true
+facilities = true
+system = true
+
+# messages

@@ -1,0 +1,58 @@
+userData:
+playerUUID
+playerID
+discordID // can be null
+createDate
+eWallet
+cWallet
+// JSON object, recording things like is blacklister, blacklistReason, rank level, etc.
+additionalInfo
+
+daily:
+playerUUID
+claimData
+
+paymentRecord:
+payID
+playerUUID
+amount
+currency
+result
+reason
+createDate
+
+betRecord:
+betID
+playerUUID
+betType
+amount
+odds
+result
+additionalInfo
+createDate
+
+rank:
+rankID
+rankName
+description
+dailyReward // {"emerald": amount, "coin": amount}
+discordID // can be null
+prefix // can be null
+bonusOdds // default= 0
+
+tickets:
+tickedID
+ticketName
+description
+reward // {"emerald": amount, "coin": amount}
+claimPassword
+createDate
+additionalInfo
+
+errorHistory:
+errorID
+errorType
+errorMessage
+playerUUID
+time
+additionalInfo
