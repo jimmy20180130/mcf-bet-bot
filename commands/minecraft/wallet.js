@@ -3,6 +3,8 @@
 const userRepository = require('../../repositories/index').userRepository;
 const userInfoService = require('../../services/userInfoService');
 const paymentService = require('../../services/paymentService');
+const { withErrorHandling } = require('../../utils/commandHandler');
+const errorHandler = require('../../services/errorHandler');
 
 module.exports = {
     name: 'wallet',
@@ -10,19 +12,12 @@ module.exports = {
     description: '領取錢包內的餘額',
     usage: '/m bot wallet',
     requiredPermissionLevel: 0, // default
-    execute,
+    execute: withErrorHandling(execute),
 }
 // TODO: 把 ai 寫出來的垃圾清理乾淨
 // TODO: 存取錢包內的錢然後領出來，就這樣就好了
 async function execute(bot, playerId, args) {
-    let playerUUID;
-    
-    try {
-        playerUUID = await userInfoService.getMinecraftUUID(playerId);
-    } catch (error) {
-        bot.chat(`/m ${playerId} &c玩家資料取得失敗，請稍後再試`);
-        return;
-    }
+    const playerUUID = await userInfoService.getMinecraftUUID(playerId);
 
     // step 1: 取得錢包餘額
     // step 2: 如果餘額大於 0，則嘗試領取
@@ -50,6 +45,7 @@ async function execute(bot, playerId, args) {
         await paymentService.epay(playerId, wallet.emerald)
             .catch(err => {
                 errMsg.emerald = err.message;
+                errorHandler.handleError(err, { commandName: 'wallet', playerId, action: 'epay錢包' });
             });
     }
 
@@ -57,6 +53,7 @@ async function execute(bot, playerId, args) {
         await paymentService.cpay(playerId, wallet.coin)
             .catch(err => {
                 errMsg.coin = err.message;
+                errorHandler.handleError(err, { commandName: 'wallet', playerId, action: 'cpay錢包' });
             });
     }
 
