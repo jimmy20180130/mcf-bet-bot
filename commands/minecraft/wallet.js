@@ -1,10 +1,10 @@
 // commands/minecraft/wallet.js
 
 const userRepository = require('../../repositories/index').userRepository;
-const userInfoService = require('../../services/userInfoService');
-const paymentService = require('../../services/paymentService');
-const { withErrorHandling } = require('../../utils/commandHandler');
-const errorHandler = require('../../services/errorHandler');
+const userInfoService = require('../../services/general/userInfoService');
+const paymentService = require('../../services/minecraft/paymentService');
+const { withErrorHandling } = require('../commandHandler');
+const errorHandler = require('../../services/general/errorHandler');
 
 module.exports = {
     name: 'wallet',
@@ -12,7 +12,7 @@ module.exports = {
     description: '領取錢包內的餘額',
     usage: '/m bot wallet',
     requiredPermissionLevel: 0, // default
-    execute: withErrorHandling(execute),
+    execute: withErrorHandling('wallet', execute),
 }
 // TODO: 把 ai 寫出來的垃圾清理乾淨
 // TODO: 存取錢包內的錢然後領出來，就這樣就好了
@@ -45,7 +45,11 @@ async function execute(bot, playerId, args) {
         await paymentService.epay(playerId, wallet.emerald)
             .catch(err => {
                 errMsg.emerald = err.message;
-                errorHandler.handleError(err, { commandName: 'wallet', playerId, action: 'epay錢包' });
+                errorHandler.handle(err, playerId, playerUUID, {
+                    bot: null,
+                    operation: 'wallet_withdraw_epay',
+                    details: { amount: wallet.emerald, currency: 'emerald' }
+                });
             });
     }
 
@@ -53,7 +57,11 @@ async function execute(bot, playerId, args) {
         await paymentService.cpay(playerId, wallet.coin)
             .catch(err => {
                 errMsg.coin = err.message;
-                errorHandler.handleError(err, { commandName: 'wallet', playerId, action: 'cpay錢包' });
+                errorHandler.handle(err, playerId, playerUUID, {
+                    bot: null,
+                    operation: 'wallet_withdraw_cpay',
+                    details: { amount: wallet.coin, currency: 'coin' }
+                });
             });
     }
 

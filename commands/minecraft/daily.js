@@ -1,14 +1,14 @@
 // commands/minecraft/daily.js
 
 const Logger = require("../../utils/logger");
-const paymentService = require("../../services/paymentService");
-const rankService = require("../../services/rankService");
+const paymentService = require("../../services/minecraft/paymentService");
+const rankService = require("../../services/general/rankService");
 const { addCommas } = require("../../utils/format");
-const userInfoService = require("../../services/userInfoService");
+const userInfoService = require("../../services/general/userInfoService");
 const dailyRepository = require("../../repositories").dailyRepository;
 const userRepository = require("../../repositories").userRepository;
-const { withErrorHandling } = require("../../utils/commandHandler");
-const errorHandler = require("../../services/errorHandler");
+const { withErrorHandling } = require("../commandHandler");
+const errorHandler = require("../../services/general/errorHandler");
 
 module.exports = {
     name: 'daily',
@@ -16,12 +16,12 @@ module.exports = {
     description: '領取每日簽到獎勵',
     usage: '/m bot daily',
     requiredPermissionLevel: 0, // default
-    execute: withErrorHandling(execute),
+    execute: withErrorHandling('daily', execute),
 }
 
 async function execute(bot, playerId, args) {
     Logger.info(`[daily] ${playerId} 嘗試領取每日獎勵`);
-    // TODO: implement daily
+    // TODO: 更改資料儲存方式
     // step:
     // 1. playerId => playeruuid (use userInfoService)
     // 2. getRank 並取得相對應的簽到金額
@@ -56,7 +56,11 @@ async function execute(bot, playerId, args) {
             await paymentService.epay(playerId, emeraldAmount)
                 .catch(async err => {
                     errorFlag.emerald = true;
-                    errorHandler.handleError(err, { commandName: 'daily', playerId, action: 'epay獎勵' });
+                    errorHandler.handle(err, playerId, playerUUID, {
+                        bot: null, // 不重複通知
+                        operation: 'daily_reward_epay',
+                        details: { amount: emeraldAmount, currency: 'emerald' }
+                    });
                 });
         }
 
@@ -64,7 +68,11 @@ async function execute(bot, playerId, args) {
             await paymentService.cpay(playerId, coinAmount)
                 .catch(async err => {
                     errorFlag.coin = true;
-                    errorHandler.handleError(err, { commandName: 'daily', playerId, action: 'cpay獎勵' });
+                    errorHandler.handle(err, playerId, playerUUID, {
+                        bot: null, // 不重複通知
+                        operation: 'daily_reward_cpay',
+                        details: { amount: coinAmount, currency: 'coin' }
+                    });
                 });
         }
 

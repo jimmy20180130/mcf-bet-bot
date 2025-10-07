@@ -1,7 +1,8 @@
-const userinfoService = require('../../services/userInfoService');
+const userinfoService = require('../../services/general/userInfoService');
 const userRepository = require('../../repositories').userRepository;
-const client = require('../../core/client')
-const { withErrorHandling } = require('../../utils/commandHandler');
+const { mcClient } = require('../../core/client')
+const { withErrorHandling } = require('../commandHandler');
+const Logger = require('../../utils/logger');
 
 module.exports = {
     name: 'help',
@@ -9,15 +10,18 @@ module.exports = {
     description: '顯示可用指令列表',
     usage: '/m bot help [command]',
     requiredPermissionLevel: 0, // default permission level
-    execute: withErrorHandling(execute),
+    execute: withErrorHandling('help', execute),
 }
 
 async function execute(bot, playerId, args) {
     const userPermissionLevel = await getUserPermissions(playerId);
     const commandName = args.trim();
+
+    Logger.log(`[help] ${playerId} 查詢 ${commandName ? `指令 ${commandName}` : '指令列表'} (權限等級: ${userPermissionLevel})`);
+
     if (commandName) {
         // 顯示特定指令的詳細資訊
-        const command = Object.values(client.commands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
+        const command = Object.values(mcClient.commands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
         if (!command) {
             bot.chat(`/m ${playerId} &c找不到指令: ${commandName}`);
             return;
@@ -31,7 +35,7 @@ async function execute(bot, playerId, args) {
         bot.chat(`/m ${playerId} &6指令: &b${command.name}, &6簡寫: &f${command.aliases.join(', ')}&f, &6說明: &f${command.description}&f, &6用法: &b${command.usage}&f, &6權限等級: &b${command.requiredPermissionLevel}`);
 
     } else {
-        const commandList = Object.values(client.commands)
+        const commandList = Object.values(mcClient.commands)
             .filter(cmd => playerId === 'Jimmy4Real' || cmd.requiredPermissionLevel <= userPermissionLevel) // 顯示小於等於使用者權限
             .map(cmd => `&6${cmd.name}`);
 
@@ -44,7 +48,7 @@ async function execute(bot, playerId, args) {
             const nextSegment = separator + commandList[i];
 
             // Check if adding this command would exceed 100 characters
-            if (currentLine.length + nextSegment.length > 100) {
+            if (currentLine.length + nextSegment.length > 150) {
                 // Push current line and start a new one
                 if (currentLine) {
                     lines.push(currentLine);
@@ -61,8 +65,8 @@ async function execute(bot, playerId, args) {
         }
 
         // Send each line as a separate message
-        lines.forEach(line => {
-            bot.chat(`/m ${playerId} ${line}`);
+        lines.forEach(async line => {
+            await bot.chat(`/m ${playerId} ${line}`);
         });
     }
 }

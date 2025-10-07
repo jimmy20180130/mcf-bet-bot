@@ -1,4 +1,4 @@
-const { withErrorHandling } = require("../../utils/commandHandler");
+const { withErrorHandling } = require("../commandHandler");
 
 module.exports = {
     name: 'example',
@@ -6,7 +6,7 @@ module.exports = {
     description: '這是一個範例指令',
     usage: '<args>',
     requiredPermissionLevel: 0, // default permission level
-    execute: withErrorHandling(execute),
+    execute: withErrorHandling('example', execute),
 }
 
 async function execute(bot, playerId, args) {

@@ -1,9 +1,9 @@
 // commands/minecraft/agreeEULA.js
 
 const userRepository = require('../../repositories').userRepository;
-const userinfoService = require('../../services/userInfoService');
-const blacklistService = require('../../services/blacklistService');
-const { withErrorHandling } = require('../../utils/commandHandler');
+const userinfoService = require('../../services/general/userInfoService');
+const blacklistService = require('../../services/general/blacklistService');
+const { withErrorHandling } = require('../commandHandler');
 
 module.exports = {
     name: 'agreeEULA',
@@ -11,7 +11,7 @@ module.exports = {
     description: '同意條款',
     usage: '/m bot agreeEULA',
     requiredPermissionLevel: 0, // default permission level
-    execute: withErrorHandling(execute),   
+    execute: withErrorHandling('agreeEULA', execute),   
 }
 
 async function execute(bot, playerId, args) {

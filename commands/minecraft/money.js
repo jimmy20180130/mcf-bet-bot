@@ -1,7 +1,8 @@
 // commands/minecraft/money.js
 
 const { addCommas } = require('../../utils/format');
-const { withErrorHandling } = require('../../utils/commandHandler');
+const { withErrorHandling } = require('../commandHandler');
+const Logger = require('../../utils/logger');
 
 module.exports = {
     name: 'money',
@@ -9,10 +10,12 @@ module.exports = {
     description: '查看目前 Bot 的餘額',
     usage: '/m bot money',
     requiredPermissionLevel: 1, // admin
-    execute: withErrorHandling(execute),   
+    execute: withErrorHandling('money', execute),   
 }
 
 async function execute(bot, playerId, args) {
+    Logger.log(`[money] ${playerId} 查詢 BOT 的餘額`);
+
     const map = bot.scoreboards?.["TAB-Scoreboard"]?.itemsMap;
 
     let emeraldRaw = map?.["§2§r"]?.displayName?.text?.match(/＄.*?([\d,]+)元/)?.[1];

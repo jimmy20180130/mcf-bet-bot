@@ -1,6 +1,6 @@
 // commands/minecraft/deposit.js
 
-const client = require('../../core/client')
+const { client, mcClient } = require('../../core/client')
 const pendingDeposits = new Map()
 
 module.exports = {
@@ -9,11 +9,26 @@ module.exports = {
     description: '把資金給 Bot',
     usage: '/m bot deposit',
     execute,
+    init,
+    cleanup
 }
 
-client.on('mcBotDeposit', ({ bot, playerId, amount, type }) => {
-    handleDeposit(bot, playerId, amount, type)
-})
+let depositHandler = null;
+
+function init() {
+    depositHandler = ({ bot, playerId, amount, type }) => {
+        handleDeposit(bot, playerId, amount, type);
+    };
+    mcClient.on('deposit', depositHandler);
+}
+
+function cleanup() {
+    if (depositHandler) {
+        mcClient.removeListener('deposit', depositHandler);
+        depositHandler = null;
+    }
+    pendingDeposits.clear();
+}
 
 function handleDeposit(bot, playerId, amount, currency) {
     if (pendingDeposits.has(playerId)) {
