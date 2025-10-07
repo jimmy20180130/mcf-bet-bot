@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const databaseService = require('../services/databaseService');
+const databaseService = require('../services/general/databaseService');
 
 class LMDBCLIManager {
     constructor() {
@@ -1142,16 +1142,8 @@ const lmdbManager = new LMDBManager();`;
     start() {
         return new Promise((resolve) => {
             const server = this.app.listen(this.port, () => {
-                console.log('🚀 LMDB 視覺化管理器已啟動');
-                console.log('📱 請在瀏覽器中訪問: http://localhost:' + this.port);
-                console.log('🛠  管理界面功能:');
-                console.log('   - 查看所有資料');
-                console.log('   - 創建新資料');
-                console.log('   - 編輯現有資料');
-                console.log('   - 刪除資料');
-                console.log('   - 搜尋資料');
-                console.log('   - 清空資料庫');
-                console.log('\\n按 Ctrl+C 停止服務器');
+                console.log('資料庫管理器已上線: http://localhost:' + this.port);
+                console.log('按 Ctrl+C 可關閉伺服器');
                 
                 resolve(server);
             });
