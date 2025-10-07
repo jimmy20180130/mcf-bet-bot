@@ -1,4 +1,4 @@
-const databaseService = require('../services/databaseService');
+const databaseService = require('../services/general/databaseService');
 const Logger = require('../utils/logger');
 // TODO: 清理不必要的垃圾
 
