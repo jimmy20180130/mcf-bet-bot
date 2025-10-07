@@ -1,12 +1,11 @@
 const { open } = require('lmdb');
 const path = require('path');
-const Logger = require('../utils/logger');
+const Logger = require('../../utils/logger');
 // TODO: 清理不必要的垃圾
 class DatabaseService {
     constructor() {
         this.db = null;
-        this.dbPath = path.join(__dirname, '..', 'data');
-        this.init();
+        this.dbPath = path.join(__dirname, '..', '..', 'data');
     }
 
     /**

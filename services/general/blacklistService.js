@@ -1,7 +1,6 @@
-const userRepository = require('../repositories/').userRepository;
+const userRepository = require('../../repositories/').userRepository;
 const userinfoService = require('./userInfoService');
-const Logger = require('../utils/logger');
-const { DatabaseError } = require('../utils/errors');
+const { DatabaseError } = require('../../utils/errors');
 // TODO: auto remove blacklist status if is expired
 // blacklist and cooldown service
 class BlacklistService {

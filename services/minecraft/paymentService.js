@@ -1,22 +1,34 @@
-const Logger = require('../utils/logger');
-const client = require('../core/client');
-const userRepository = require('../repositories').userRepository;
-const userinfoService = require('../services/userInfoService');
-const { addCommas, removeCommas } = require('../utils/format');
-const { PaymentError, ValidationError } = require('../utils/errors');
+const Logger = require('../../utils/logger');
+const { client, mcClient } = require('../../core/client');
+const userRepository = require('../../repositories').userRepository;
+const userinfoService = require('../general/userInfoService');
+const { addCommas, removeCommas } = require('../../utils/format');
+const { PaymentError, ValidationError } = require('../../utils/errors');
 
 class PaymentService {
     constructor() {
         this.bot = null;
         this.activePayments = new Map();
-        this.init();
+        this.eventHandlers = [];
     }
 
     init() {
-        client.on('mcBotSpawned', (bot) => {
+        mcClient.on('spawned', (bot) => {
             this.bot = bot;
             this._setupHandlers();
         });
+    }
+
+    cleanup() {
+        Logger.debug('[PaymentService.cleanup] 清理 PaymentService');
+        this.bot = null;
+        this.activePayments.clear();
+        
+        // 移除所有事件監聽器
+        for (const handler of this.eventHandlers) {
+            mcClient.removeListener(handler.event, handler.listener);
+        }
+        this.eventHandlers = [];
     }
 
     async pay(type, player, amount) {
@@ -96,35 +108,46 @@ class PaymentService {
     }
 
     _setupHandlers() {
+        // 儲存事件處理器以便後續清理
+        const addHandler = (event, listener) => {
+            mcClient.on(event, listener);
+            this.eventHandlers.push({ event, listener });
+        };
+
         // epay
-        client.on('mcBotEpaySuccess', (matches) => {
+        addHandler('epaySuccess', (matches) => {
             let match = /^\[系統\] 成功轉帳 (.*) 綠寶石 給 (.*) \(目前擁有 (.*) 綠寶石\)/.exec(matches[0])
             this._handleSuccess('emerald', match[2], match[1], match[3]);
         });
-        client.on('mcBotEpayNoMoney', (matches) => {
-            let match = /^\[系統\] 綠寶石不足, 尚需(.+)$/ .exec(matches[0]);
+        
+        addHandler('epayNoMoney', (matches) => {
+            let match = /^\[系統\] 綠寶石不足, 尚需(.+)$/.exec(matches[0]);
             this._handleFailure('emerald', PaymentError.insufficientBalance('emerald', match[1], 'unknown'));
         });
-        client.on('mcBotEpayNotSamePlace', () =>
+        
+        addHandler('epayNotSamePlace', () =>
             this._handleFailure('emerald', PaymentError.playerNotFound('目標玩家')));
-        client.on('mcBotEpayNegative', () =>
+        
+        addHandler('epayNegative', () =>
             this._handleFailure('emerald', PaymentError.invalidAmount('negative')));
 
         // cpay
-        client.on('mcBotCpaySuccess', (matches) => {
+        addHandler('cpaySuccess', (matches) => {
             // matches: [ "[系統] 轉帳成功! (使用了 1 村民錠, 剩餘 5 )" ]
             let match = /^\[系統\] 轉帳成功! \(使用了 (\d{1,3}(,\d{3})*|\d+) 村民錠, 剩餘 (\d{1,3}(,\d{3})*|\d+) \)$/.exec(matches[0])
             this._handleSuccess('coin', null, match[1], match[3]);
-        })
-        client.on('mcBotCpayNoMoney', (matches) => {
+        });
+        
+        addHandler('cpayNoMoney', (matches) => {
             let match = /^\[系統\] 村民錠不足, 尚需 (\d{1,3}(,\d{3})*|\d+) 村民錠\. \(目前剩餘 (\d{1,3}(,\d{3})*|\d+) \)/.exec(matches[0])
             this._handleFailure('coin', PaymentError.insufficientBalance('coin', match[1], match[3]));
         });
-        client.on('mcBotCpayDifferentName', () => 
+        
+        addHandler('cpayDifferentName', () => 
             this._handleFailure('coin', PaymentError.playerNotFound('目標玩家')));
 
         // General handlers
-        client.on('mcBotGeneralCannotSend', () => 
+        addHandler('generalCannotSend', () => 
             this._handleFailure(null, PaymentError.cannotSendMessage()));
     }
 

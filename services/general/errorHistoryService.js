@@ -1,5 +1,5 @@
-const { errorRepository } = require('../repositories');
-const Logger = require('../utils/logger');
+const { errorRepository } = require('../../repositories');
+const Logger = require('../../utils/logger');
 // TODO: 清理不必要的垃圾
 /**
  * 錯誤歷史服務

@@ -1,10 +1,36 @@
-const client = require('../core/client');
-const Logger = require('../utils/logger');
-const userRepository = require('../repositories').userRepository;
+const { client, mcClient } = require('../../core/client');
+const Logger = require('../../utils/logger');
+const userRepository = require('../../repositories').userRepository;
 
 class TeleportService {
     constructor() {
         this.bot = null;
+        this.eventHandlers = [];
+    }
+
+    init() {
+        const spawnedHandler = (bot) => {
+            this.setBot(bot);
+        };
+        mcClient.on('spawned', spawnedHandler);
+        this.eventHandlers.push({ event: 'spawned', listener: spawnedHandler });
+
+        const tpRequestHandler = async ({ bot, playerId }) => {
+            await this.handleTpRequest(playerId);
+        };
+        mcClient.on('tpRequest', tpRequestHandler);
+        this.eventHandlers.push({ event: 'tpRequest', listener: tpRequestHandler });
+    }
+
+    cleanup() {
+        Logger.debug('[TeleportService.cleanup] 清理 TeleportService');
+        this.bot = null;
+        
+        // 移除所有事件監聽器
+        for (const handler of this.eventHandlers) {
+            mcClient.removeListener(handler.event, handler.listener);
+        }
+        this.eventHandlers = [];
     }
 
     setBot(bot) {
@@ -43,13 +69,5 @@ class TeleportService {
 }
 
 const teleportService = new TeleportService();
-
-client.on('mcBotSpawned', (bot) => {
-    teleportService.setBot(bot);
-});
-
-client.on('mcBotTpRequest', async ({ bot, playerId }) => {
-    await teleportService.handleTpRequest(playerId);
-});
 
 module.exports = teleportService;

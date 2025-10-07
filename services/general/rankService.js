@@ -1,6 +1,6 @@
-const { repositories } = require('../repositories');
-const Logger = require('../utils/logger');
-const { DatabaseError, ValidationError } = require('../utils/errors');
+const { repositories } = require('../../repositories');
+const Logger = require('../../utils/logger');
+const { DatabaseError, ValidationError } = require('../../utils/errors');
 // TODO: 清理不必要的垃圾
 /**
  * 等級管理服務

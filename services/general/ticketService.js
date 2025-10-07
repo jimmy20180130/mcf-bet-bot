@@ -1,6 +1,6 @@
-const { ticketRepository, userRepository } = require('../repositories');
-const Logger = require('../utils/logger');
-const { ValidationError, DatabaseError, UserError } = require('../utils/errors');
+const { ticketRepository, userRepository } = require('../../repositories');
+const Logger = require('../../utils/logger');
+const { ValidationError, DatabaseError, UserError } = require('../../utils/errors');
 // TODO: 清理不必要的垃圾
 /**
  * 票券服務

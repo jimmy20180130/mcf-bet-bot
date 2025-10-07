@@ -1,6 +1,6 @@
-const UserRepository = require('../repositories/UserRepository');
-const Logger = require('../utils/logger');
-const { UserError, AppError } = require('../utils/errors');
+const UserRepository = require('../../repositories/UserRepository');
+const Logger = require('../../utils/logger');
+const { UserError, AppError } = require('../../utils/errors');
 // TODO: 清理不必要的垃圾
 class UserInfoService {
     constructor() {
