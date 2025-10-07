@@ -16,9 +16,13 @@ class Logger {
         this.logs = [];
     }
 
+    _formatTimestamp(date) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
     log(message) {
-        // https://blog.darkthread.net/blog/js-date-yyyymmdd-hhmmss/
-        const timestamp = new Date().toLocaleString('sv');
+        const timestamp = this._formatTimestamp(new Date());
         this.logs.push({ message, timestamp });
         console.log(`[${timestamp}] \x1b[36m[INFO]\x1b[0m ${message}`);
     }
@@ -29,8 +33,7 @@ class Logger {
     }
 
     warn(message) {
-        // https://blog.darkthread.net/blog/js-date-yyyymmdd-hhmmss/
-        const timestamp = new Date().toLocaleString('sv');
+        const timestamp = this._formatTimestamp(new Date());
         this.logs.push({ message, timestamp });
 
         const fileInfo = ((stack) => {
@@ -46,7 +49,7 @@ class Logger {
     }
 
     error(...args) {  // 支援多個參數
-        const timestamp = new Date().toLocaleString('sv');
+        const timestamp = this._formatTimestamp(new Date());
         const message = args.map(arg => {
             if (arg instanceof Error) {
                 return `${arg.message}\n${arg.stack}`;
@@ -72,8 +75,7 @@ class Logger {
     }
 
     debug(message) {
-        // https://blog.darkthread.net/blog/js-date-yyyymmdd-hhmmss/
-        const timestamp = new Date().toLocaleString('sv');
+        const timestamp = this._formatTimestamp(new Date());
         this.logs.push({ message, timestamp });
 
         const fileInfo = ((stack) => {
