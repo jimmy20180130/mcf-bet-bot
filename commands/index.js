@@ -1,32 +1,65 @@
 const fs = require('fs');
 const Logger = require('../utils/logger');
-const client = require('../core/client');
+const { client, mcClient } = require('../core/client');
 const userRepository = require('../repositories').userRepository;
-const userinfoService = require('../services/userInfoService');
+const userinfoService = require('../services/general/userInfoService');
 
-client.on('mcBotUnregisterCommand', async (commandName) => {
-    try {
-        if (commandName == 'all') {
-            // unregister all commands
-            for (const cmdName in client.commands) {
-                await unregisterCommand(cmdName);
+let eventHandlers = [];
+
+function init() {
+    const unregisterCommandHandler = async (commandName) => {
+        try {
+            if (commandName == 'all') {
+                // unregister all commands
+                for (const cmdName in mcClient.commands) {
+                    await unregisterCommand(cmdName);
+                }
+                await registerCommands();
+                mcClient.emit('reloadResult', { success: true, commandName, message: '所有指令重新載入成功' });
+            } else {
+                await unregisterCommand(commandName);
+                await registerCommands(commandName);
+                mcClient.emit('reloadResult', { success: true, commandName, message: `指令 ${commandName} 重新載入成功` });
             }
-            await registerCommands();
-            client.emit('mcBotReloadResult', { success: true, commandName, message: '所有指令重新載入成功' });
-        } else {
-            await unregisterCommand(commandName);
-            await registerCommands(commandName);
-            client.emit('mcBotReloadResult', { success: true, commandName, message: `指令 ${commandName} 重新載入成功` });
+        } catch (error) {
+            Logger.error(`[commands.unregisterCommand] 重新載入指令時發生錯誤:`, error);
+            mcClient.emit('reloadResult', { success: false, commandName, message: `重新載入失敗: ${error.message}`, error });
         }
-    } catch (error) {
-        Logger.error(`[commands.mcBotUnregisterCommand] 重新載入指令時發生錯誤:`, error);
-        client.emit('mcBotReloadResult', { success: false, commandName, message: `重新載入失敗: ${error.message}`, error });
+    };
+    mcClient.on('unregisterCommand', unregisterCommandHandler);
+    eventHandlers.push({ event: 'unregisterCommand', listener: unregisterCommandHandler });
+
+    const commandHandler = async ({ bot, playerId, commandName, args }) => {
+        await handleCommand({ bot, playerId, commandName, args });
+    };
+    mcClient.on('command', commandHandler);
+    eventHandlers.push({ event: 'command', listener: commandHandler });
+    registerCommands();
+}
+
+function cleanup() {
+    // 清理所有已註冊的指令
+    for (const cmdName in mcClient.commands) {
+        const command = mcClient.commands[cmdName];
+        // 如果指令有 cleanup 方法，執行它
+        if (typeof command.cleanup === 'function') {
+            command.cleanup();
+        }
     }
-});
+    
+    // 清空指令列表
+    mcClient.commands = {};
+    
+    // 移除所有事件監聽器
+    for (const handler of eventHandlers) {
+        mcClient.removeListener(handler.event, handler.listener);
+    }
+    eventHandlers = [];
+}
 
 async function handleCommand({ bot, playerId, commandName, args }) {
-    // find the commandName in client.commands include all aliases
-    const command = Object.values(client.commands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
+    // find the commandName in mcClient.commands include all aliases
+    const command = Object.values(mcClient.commands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
     if (!command) return;
     try {
         // check user perm
@@ -71,8 +104,6 @@ async function checkUserPermissions(bot, playerId, command) {
     return true;
 }
 
-client.on('mcBotCommand', handleCommand);
-
 async function registerCommands(commandName='all') {
     // TODO: 也要動態載入 addons 裡面的指令
 
@@ -82,8 +113,12 @@ async function registerCommands(commandName='all') {
         if (fs.existsSync(`./commands/minecraft/${commandName}.js`)) {
             const command = require(commandPath);
             if (command && command.name && typeof command.execute === 'function') {
-                client.commands[command.name] = command;
-                Logger.debug(`[commands.registerCommands] 成功註冊指令(內部): ${command.name}`);
+                mcClient.commands[command.name] = command;
+                // 如果指令有 init 方法，執行它
+                if (typeof command.init === 'function') {
+                    command.init();
+                }
+                Logger.info(`[commands] 指令重新載入成功: ${command.name}`);
             }
         } else {
             Logger.warn(`[commands.registerCommands] 指令檔案不存在: ${commandPath}`);
@@ -92,21 +127,34 @@ async function registerCommands(commandName='all') {
 
     } else {
         const commandFiles = fs.readdirSync('./commands/minecraft').filter(file => file.endsWith('.js'));
+        let loadedCount = 0;
         for (const file of commandFiles) {
             const command = require(`../commands/minecraft/${file}`);
             if (command && command.name && typeof command.execute === 'function') {
-                client.commands[command.name] = command;
-                Logger.debug(`[commands.registerCommands] 成功註冊指令(內部): ${command.name}`);
+                mcClient.commands[command.name] = command;
+                // 如果指令有 init 方法，執行它
+                if (typeof command.init === 'function') {
+                    command.init();
+                }
+
+                Logger.debug(`[commands] 指令載入成功: ${command.name}`);
+
+                loadedCount++;
             }
         }
+        Logger.info(`[commands] 成功載入 ${loadedCount} 個指令`);
     }
 }
 
 async function unregisterCommand(commandName) {
-    if (client.commands[commandName]) {
-        delete client.commands[commandName];
+    if (mcClient.commands[commandName]) {
+        const command = mcClient.commands[commandName];
+        // 如果指令有 cleanup 方法，執行它
+        if (typeof command.cleanup === 'function') {
+            await command.cleanup();
+        }
+        delete mcClient.commands[commandName];
         delete require.cache[require.resolve(`../commands/minecraft/${commandName}.js`)];
-        Logger.debug(`[commands.unregisterCommand] 成功移除指令(內部): ${commandName}`);
     }
 }
 
@@ -114,4 +162,6 @@ module.exports = {
     commands: [],
     registerCommands,
     unregisterCommand,
+    init,
+    cleanup
 };
