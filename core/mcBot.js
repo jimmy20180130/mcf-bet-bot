@@ -1,7 +1,8 @@
 const mineflayer = require('mineflayer');
 const Logger = require('../utils/logger');
-const client = require('./client');
-const blacklistService = require('../services/blacklistService');
+const { client, mcClient } = require('./client');
+const serviceManager = require('../services/serviceManager');
+const blacklistService = require('../services/general/blacklistService');
 
 // TODO: implement chat utils
 // TODO: chat replace § with &
@@ -11,29 +12,33 @@ class Bot {
         this.bot = null;
         // [{ playerid: '', time: 0 }]
         this.depositQueue = [];
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 10;
+        this.reconnectDelay = 5000; // 5 秒
+        this.isManualStop = false;
     }
 
     start() {
+        this.isManualStop = false;
         this.bot = mineflayer.createBot(this.options);
         this.bot.once('spawn', this.onSpawn.bind(this));
         this.bot.on('message', this.onMessage.bind(this));
         this.bot.on('error', this.onError.bind(this));
         this.bot.on('end', this.onEnd.bind(this));
-        this.regCommands();
     }
 
     stop() {
+        this.isManualStop = true;
         if (this.bot) {
             this.bot.end('程式主動關閉');
         }
     }
 
-    regCommands() {
-        client.emit('mcBotRegCommand');
-    }
-
     onSpawn() {
-        client.emit('mcBotSpawned', this.bot);
+        this.reconnectAttempts = 0; // 重置重連次數
+        
+        mcClient.emit('spawned', this.bot);
+        
         // 要等到 spawn 完以後才能設 pattern
         // TODO: pattern 改為外部匯入的方式，避免到時候羅國貓又在皮
         this.bot.addChatPattern('command', /^\[([A-Za-z0-9_]+) -> 您\] ([\p{L}\p{N}_]+)\s*(.*)$/u);
@@ -55,18 +60,18 @@ class Bot {
 
         this.bot.addChatPattern('generalCannotSend', new RegExp(`^\[系統\] 無法傳送訊息`))
 
-        this.bot.on('chat:epayProcessing', () => client.emit('mcBotEpayProcessing'));
-        this.bot.on('chat:epayNoMoney', (matches) => client.emit('mcBotEpayNoMoney', matches));
-        this.bot.on('chat:epayNotSamePlace', () => client.emit('mcBotEpayNotSamePlace'));
-        this.bot.on('chat:epaySuccess', (matches) => client.emit('mcBotEpaySuccess', matches));
-        this.bot.on('chat:epayNegative', () => client.emit('mcBotEpayNegative'));
-        //this.bot.on('chat:epayInstructions', () => client.emit('mcBotEpayNotSamePlace'));
+        this.bot.on('chat:epayProcessing', () => mcClient.emit('epayProcessing'));
+        this.bot.on('chat:epayNoMoney', (matches) => mcClient.emit('epayNoMoney', matches));
+        this.bot.on('chat:epayNotSamePlace', () => mcClient.emit('epayNotSamePlace'));
+        this.bot.on('chat:epaySuccess', (matches) => mcClient.emit('epaySuccess', matches));
+        this.bot.on('chat:epayNegative', () => mcClient.emit('epayNegative'));
+        //this.bot.on('chat:epayInstructions', () => mcClient.emit('epayNotSamePlace'));
 
-        this.bot.on('chat:cpaySuccess', (matches) => client.emit('mcBotCpaySuccess', matches));
-        this.bot.on('chat:cpayDifferentName', () => client.emit('mcBotCpayDifferentName'));
-        this.bot.on('chat:cpayNoMoney', (matches) => client.emit('mcBotCpayNoMoney', matches));
+        this.bot.on('chat:cpaySuccess', (matches) => mcClient.emit('cpaySuccess', matches));
+        this.bot.on('chat:cpayDifferentName', () => mcClient.emit('cpayDifferentName'));
+        this.bot.on('chat:cpayNoMoney', (matches) => mcClient.emit('cpayNoMoney', matches));
 
-        this.bot.on('chat:generalCannotSend', () => client.emit('mcBotGeneralCannotSend'));
+        this.bot.on('chat:generalCannotSend', () => mcClient.emit('generalCannotSend'));
 
         this.bot.on('chat:command', this.handleCommand.bind(this));
         this.bot.on('chat:getEmerald', this.handleGetEmerald.bind(this));
@@ -86,7 +91,7 @@ class Bot {
         const playerId = m[1];
         const commandName = m[2];
         const args = m[3].trim();
-        const command = Object.values(client.commands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
+        const command = Object.values(mcClient.commands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
 
         const isBlacklisted = await blacklistService.isBlacklisted(playerId);
         if (isBlacklisted.result && isBlacklisted.reason != 'NO_ACCEPT_EULA') {
@@ -109,7 +114,7 @@ class Bot {
             this.depositQueue.push({ playerId, time: Date.now() });
         }
 
-        client.emit('mcBotCommand', { bot: this.bot, playerId, commandName, args });
+        mcClient.emit('command', { bot: this.bot, playerId, commandName, args });
     }
 
     async handleGetEmerald(matches) {
@@ -121,15 +126,15 @@ class Bot {
         const amount = m[2];
         const currentAmount = m[5];
 
-        // check if user is existed in depositQueue, if yes, emit mcBotDeposit event and remove from queue
+        // check if user is existed in depositQueue, if yes, emit deposit event and remove from queue
         const depositData = this.depositQueue.find(d => d.playerId === playerId);
         if (depositData) {
-            client.emit('mcBotDeposit', { bot: this.bot, playerId, amount, type: '&a綠寶石' });
+            mcClient.emit('deposit', { bot: this.bot, playerId, amount, type: '&a綠寶石' });
             this.depositQueue = this.depositQueue.filter(d => d.playerId !== playerId);
         } else {
             // clean timeout deposits
             this.depositQueue = this.depositQueue.filter(d => d.time + 20000 > Date.now());
-            client.emit('mcBotGetEmerald', { bot: this.bot, playerId, amount, currentAmount });
+            mcClient.emit('getEmerald', { bot: this.bot, playerId, amount, currentAmount });
         }
     }
 
@@ -142,15 +147,15 @@ class Bot {
         const amount = m[2];
         const currentAmount = m[3];
 
-        // check if user is existed in depositQueue, if yes, emit mcBotDeposit event and remove from queue
+        // check if user is existed in depositQueue, if yes, emit deposit event and remove from queue
         const depositData = this.depositQueue.find(d => d.playerId === playerId);
         if (depositData && depositData.time + 20000 > Date.now()) { // 20 seconds
-            client.emit('mcBotDeposit', { bot: this.bot, playerId, amount, type: '&6村民錠' });
+            mcClient.emit('deposit', { bot: this.bot, playerId, amount, type: '&6村民錠' });
             this.depositQueue = this.depositQueue.filter(d => d.playerId !== playerId);
         } else {
             // clean timeout deposits
             this.depositQueue = this.depositQueue.filter(d => d.time + 20000 > Date.now());
-            client.emit('mcBotGetCoin', { bot: this.bot, playerId, amount, currentAmount });
+            mcClient.emit('getCoin', { bot: this.bot, playerId, amount, currentAmount });
         }
     }
 
@@ -162,11 +167,11 @@ class Bot {
         let m2 = regex2.exec(text);
         if (!m1 && !m2) return;
         const playerId = m1 ? m1[1] : m2[1];
-        client.emit('mcBotTpRequest', { bot: this.bot, playerId });
+        mcClient.emit('tpRequest', { bot: this.bot, playerId });
     }
 
     onMessage(message) {
-        client.emit('mcBotMessage', message.toString());
+        mcClient.emit('message', message.toString());
         Logger.info(message.toAnsi())
     }
 
@@ -174,8 +179,44 @@ class Bot {
         Logger.error(`Bot 發生錯誤: ${err.message}`);
     }
 
-    onEnd(reason) {
+    async onEnd(reason) {
         Logger.warn(`Bot 斷線: ${reason || '未知原因'}`);
+        
+        // 如果是手動停止，不要重連
+        if (this.isManualStop) {
+            Logger.info('手動停止，不會重新連線');
+            return;
+        }
+
+        // 檢查是否達到最大重連次數
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            Logger.error(`已達到最大重連次數 (${this.maxReconnectAttempts})，停止重連`);
+            process.exit(1);
+            return;
+        }
+
+        this.reconnectAttempts++;
+        const delay = this.reconnectDelay * this.reconnectAttempts;
+        Logger.info(`將在 ${delay / 1000} 秒後嘗試第 ${this.reconnectAttempts} 次重新連線...`);
+
+        // 清理所有 Minecraft 服務和事件監聽器
+        await serviceManager.cleanup();
+
+        // 等待指定時間後重新連線
+        setTimeout(async () => {
+            try {
+                Logger.info('開始重新連線...');
+                
+                // 重新初始化服務
+                await serviceManager.initialize();
+                
+                // 重新啟動 bot
+                this.start();
+            } catch (error) {
+                Logger.error('重新連線失敗:', error);
+                this.onEnd('重連失敗');
+            }
+        }, delay);
     }
 }
 
