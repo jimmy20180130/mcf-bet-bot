@@ -154,16 +154,19 @@ class BetService {
             if (isTimeoutError) {
                 // 超時錯誤：只通知玩家，不退款
                 if (result == 'return') {
-                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，若您&c沒收到 &b${addCommas(task.amount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: ${errorID})`);
+                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，若您&c沒收到 &b${addCommas(task.amount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result == 'win') {
-                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，若您&c沒收到&f您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: ${errorID})`);
+                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，若您&c沒收到&f您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result == 'lose') {
-                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，您未中獎 &7(錯誤ID: ${errorID})`);
+                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，您未中獎 &7(錯誤ID: &c${errorID}&7)`);
                 }
             } else {
                 // 非超時錯誤：退款給玩家
+                // 獲取錯誤的詳細原因
+                const errorReason = error.message || '未知錯誤';
+                
                 if (result === 'return') {
-                    this.bot.chat(`/m ${task.playerId} &f下注失敗，已退回給您下注的 &b${addCommas(task.amount)} &f個&a綠寶石 &7(錯誤ID: ${errorID})`);
+                    this.bot.chat(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您下注的 &b${addCommas(task.amount)} &f個&a綠寶石 &7(錯誤ID: &c${errorID}&7)`);
                     await paymentService.epay(task.playerId, returnAmount).catch(async (payError) => {
                         await errorHandler.handle(payError, task.playerId, task.playerUUID, {
                             bot: this.bot,
@@ -172,9 +175,9 @@ class BetService {
                         });
                     });
                 } else if (result === 'lose') {
-                    this.bot.chat(`/m ${task.playerId} &f下注失敗，您未中獎 &7(錯誤ID: ${errorID})`);
+                    this.bot.chat(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，您未中獎 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result === 'win') {
-                    this.bot.chat(`/m ${task.playerId} &f下注失敗，已退回給您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石 &7(錯誤ID: ${errorID})`);
+                    this.bot.chat(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石 &7(錯誤ID: &c${errorID}&7)`);
                     await paymentService.epay(task.playerId, returnAmount).catch(async (payError) => {
                         await errorHandler.handle(payError, task.playerId, task.playerUUID, {
                             bot: this.bot,
