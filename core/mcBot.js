@@ -16,11 +16,24 @@ class Bot {
         this.maxReconnectAttempts = 10;
         this.reconnectDelay = 5000; // 5 秒
         this.isManualStop = false;
+        this.spawnTimeout = null; // spawn 超時計時器
+        this.spawnTimeoutDuration = 30000; // 30 秒
     }
 
     start() {
         this.isManualStop = false;
         this.bot = mineflayer.createBot(this.options);
+        
+        // 設置 spawn 超時計時器
+        this.spawnTimeout = setTimeout(() => {
+            Logger.warn(`Bot 啟動後 ${this.spawnTimeoutDuration / 1000} 秒內未收到 spawn 事件，判斷為連線失敗`);
+            if (this.bot) {
+                this.bot.end('spawn 超時');
+            } else {
+                this.onEnd('spawn 超時')
+            }
+        }, this.spawnTimeoutDuration);
+        
         this.bot.once('spawn', this.onSpawn.bind(this));
         this.bot.on('message', this.onMessage.bind(this));
         this.bot.on('error', this.onError.bind(this));
@@ -29,12 +42,25 @@ class Bot {
 
     stop() {
         this.isManualStop = true;
+        
+        // 清除 spawn 超時計時器
+        if (this.spawnTimeout) {
+            clearTimeout(this.spawnTimeout);
+            this.spawnTimeout = null;
+        }
+        
         if (this.bot) {
             this.bot.end('程式主動關閉');
         }
     }
 
     onSpawn() {
+        // 清除 spawn 超時計時器（成功收到 spawn 事件）
+        if (this.spawnTimeout) {
+            clearTimeout(this.spawnTimeout);
+            this.spawnTimeout = null;
+        }
+        
         this.reconnectAttempts = 0; // 重置重連次數
         
         mcClient.emit('spawned', this.bot);
@@ -182,6 +208,12 @@ class Bot {
     async onEnd(reason) {
         Logger.warn(`Bot 斷線: ${reason || '未知原因'}`);
         
+        // 清除 spawn 超時計時器
+        if (this.spawnTimeout) {
+            clearTimeout(this.spawnTimeout);
+            this.spawnTimeout = null;
+        }
+        
         // 如果是手動停止，不要重連
         if (this.isManualStop) {
             Logger.info('手動停止，不會重新連線');
@@ -192,7 +224,6 @@ class Bot {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             Logger.error(`已達到最大重連次數 (${this.maxReconnectAttempts})，停止重連`);
             process.exit(1);
-            return;
         }
 
         this.reconnectAttempts++;
