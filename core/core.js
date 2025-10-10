@@ -2,7 +2,8 @@ const Logger = require("../utils/logger");
 const fs = require('fs');
 const { mcClient } = require('./client');
 const serviceManager = require('../services/serviceManager');
-const mcBot = require('./mcBot')
+const mcBot = require('./mcBot');
+const dcBot = require('./dcBot');
 const rl = require('readline').createInterface({
     input: process.stdin,
     output: process.stdout
@@ -46,8 +47,16 @@ async function initializeServices() {
 
 // 啟動應用
 async function start() {
+    // 先啟動 Discord bot
+    Logger.info('正在啟動 Discord bot...');
+    await dcBot.init();
+    Logger.info('Discord bot 啟動完成');
+    
+    // 再啟動 Minecraft bot
+    Logger.info('正在啟動 Minecraft bot...');
     await initializeServices();
     bot.start();
+    Logger.info('Minecraft bot 啟動完成');
 }
 
 start();
