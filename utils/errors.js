@@ -1,7 +1,3 @@
-/**
- * 簡化的錯誤類別
- * 所有錯誤都繼承自這個基類
- */
 class AppError extends Error {
     constructor(message, code = 'UNKNOWN_ERROR') {
         super(message);
@@ -106,6 +102,10 @@ class DatabaseError extends AppError {
 
     static alreadyExists(resource, identifier) {
         return new DatabaseError(`${resource} 已存在: ${identifier}`, 'ALREADY_EXISTS');
+    }
+
+    static updateFailed(resource, identifier) {
+        return new DatabaseError(`更新 ${resource} 失敗: ${identifier}`, 'UPDATE_FAILED');
     }
 }
 
