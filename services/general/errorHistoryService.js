@@ -1,13 +1,18 @@
 const { errorRepository } = require('../../repositories');
 const Logger = require('../../utils/logger');
 // TODO: 清理不必要的垃圾
-/**
- * 錯誤歷史服務
- * 處理錯誤記錄相關的業務邏輯，提供錯誤記錄、查詢、統計等功能
- */
+
 class ErrorHistoryService {
     constructor() {
         this.errorRepository = errorRepository;
+    }
+
+    async init() {
+        Logger.debug('[ErrorHistoryService.init] 初始化 ErrorHistoryService');
+    }
+
+    async cleanup() {
+        Logger.debug('[ErrorHistoryService.cleanup] 清理 ErrorHistoryService');
     }
 
     /**
@@ -148,164 +153,6 @@ class ErrorHistoryService {
     }
 
     /**
-     * 獲取玩家錯誤歷史
-     * @param {string} playerUUID - 玩家 UUID
-     * @param {number} limit - 限制數量
-     * @returns {Promise<Object>} 操作結果
-     */
-    async getPlayerErrorHistory(playerUUID, limit = 50) {
-        try {
-            const errors = await this.errorRepository.getErrorsByPlayerUUID(playerUUID, limit);
-            return {
-                success: true,
-                errors,
-                count: errors.length
-            };
-        } catch (error) {
-            Logger.error(`[ErrorHistoryService.getPlayerErrorHistory] 獲取玩家錯誤歷史失敗:`, error);
-            return {
-                success: false,
-                message: error.message || '系統錯誤',
-                errors: [],
-                count: 0
-            };
-        }
-    }
-
-    /**
-     * 獲取錯誤類型統計
-     * @param {number} days - 統計天數
-     * @returns {Promise<Object>} 操作結果
-     */
-    async getErrorTypeStatistics(days = 7) {
-        try {
-            const statistics = await this.errorRepository.getErrorStatistics(days);
-            return {
-                success: true,
-                statistics,
-                period: `${days} 天`
-            };
-        } catch (error) {
-            Logger.error(`[ErrorHistoryService.getErrorTypeStatistics] 獲取錯誤統計失敗:`, error);
-            return {
-                success: false,
-                message: error.message || '系統錯誤',
-                statistics: null
-            };
-        }
-    }
-
-    /**
-     * 獲取最近錯誤
-     * @param {number} limit - 限制數量
-     * @returns {Promise<Object>} 操作結果
-     */
-    async getRecentErrors(limit = 50) {
-        try {
-            const errors = await this.errorRepository.getRecentErrors(limit);
-            return {
-                success: true,
-                errors,
-                count: errors.length
-            };
-        } catch (error) {
-            Logger.error(`[ErrorHistoryService.getRecentErrors] 獲取最近錯誤失敗:`, error);
-            return {
-                success: false,
-                message: error.message || '系統錯誤',
-                errors: [],
-                count: 0
-            };
-        }
-    }
-
-    /**
-     * 根據錯誤類型獲取錯誤
-     * @param {string} errorType - 錯誤類型
-     * @param {number} limit - 限制數量
-     * @returns {Promise<Object>} 操作結果
-     */
-    async getErrorsByType(errorType, limit = 100) {
-        try {
-            const errors = await this.errorRepository.getErrorsByType(errorType, limit);
-            return {
-                success: true,
-                errors,
-                count: errors.length,
-                errorType
-            };
-        } catch (error) {
-            Logger.error(`[ErrorHistoryService.getErrorsByType] 獲取錯誤類型記錄失敗:`, error);
-            return {
-                success: false,
-                message: error.message || '系統錯誤',
-                errors: [],
-                count: 0
-            };
-        }
-    }
-
-    /**
-     * 搜尋錯誤記錄
-     * @param {Object} searchCriteria - 搜尋條件
-     * @param {string} searchCriteria.errorType - 錯誤類型 (可選)
-     * @param {string} searchCriteria.playerUUID - 玩家 UUID (可選)
-     * @param {number} searchCriteria.startTime - 開始時間 (可選)
-     * @param {number} searchCriteria.endTime - 結束時間 (可選)
-     * @param {string} searchCriteria.keyword - 關鍵字搜尋 (可選)
-     * @param {number} limit - 限制數量
-     * @returns {Promise<Object>} 操作結果
-     */
-    async searchErrors(searchCriteria, limit = 100) {
-        try {
-            let errors = await this.errorRepository.getAllErrors();
-
-            // 根據條件過濾
-            if (searchCriteria.errorType) {
-                errors = errors.filter(error => error.errorType === searchCriteria.errorType);
-            }
-
-            if (searchCriteria.playerUUID) {
-                errors = errors.filter(error => error.playerUUID === searchCriteria.playerUUID);
-            }
-
-            if (searchCriteria.startTime && searchCriteria.endTime) {
-                errors = errors.filter(error => 
-                    error.time >= searchCriteria.startTime && error.time <= searchCriteria.endTime
-                );
-            }
-
-            if (searchCriteria.keyword) {
-                const keyword = searchCriteria.keyword.toLowerCase();
-                errors = errors.filter(error => 
-                    error.errorMessage.toLowerCase().includes(keyword) ||
-                    error.errorID.toLowerCase().includes(keyword)
-                );
-            }
-
-            // 排序並限制數量
-            errors = errors
-                .sort((a, b) => b.time - a.time)
-                .slice(0, limit);
-
-            return {
-                success: true,
-                errors,
-                count: errors.length,
-                searchCriteria
-            };
-        } catch (error) {
-            Logger.error(`[ErrorHistoryService.searchErrors] 搜尋錯誤記錄失敗:`, error);
-            return {
-                success: false,
-                message: error.message || '系統錯誤',
-                errors: [],
-                count: 0
-            };
-        }
-    }
-
-    /**
      * 清理舊錯誤記錄
      * @param {number} days - 保留天數
      * @returns {Promise<Object>} 操作結果
@@ -330,94 +177,9 @@ class ErrorHistoryService {
             };
         }
     }
-
-    /**
-     * 獲取錯誤記錄詳情
-     * @param {string} errorID - 錯誤 ID
-     * @returns {Promise<Object>} 操作結果
-     */
-    async getErrorDetails(errorID) {
-        try {
-            const error = await this.errorRepository.getErrorByID(errorID);
-            if (error) {
-                return {
-                    success: true,
-                    error
-                };
-            } else {
-                return {
-                    success: false,
-                    message: '錯誤記錄不存在'
-                };
-            }
-        } catch (error) {
-            Logger.error(`[ErrorHistoryService.getErrorDetails] 獲取錯誤詳情失敗:`, error);
-            return {
-                success: false,
-                message: error.message || '系統錯誤'
-            };
-        }
-    }
-
-    /**
-     * 格式化錯誤訊息用於顯示
-     * @param {Object} error - 錯誤記錄
-     * @returns {string} 格式化的錯誤訊息
-     */
-    formatErrorMessage(error) {
-        const timestamp = new Date(error.time * 1000).toLocaleString('zh-TW');
-        const playerInfo = error.playerUUID ? ` (玩家: ${error.playerUUID})` : '';
-        
-        return `[${timestamp}] ${error.errorType}: ${error.errorMessage}${playerInfo} (ID: ${error.errorID})`;
-    }
-
-    /**
-     * 批量記錄錯誤 (用於系統遷移或批量處理)
-     * @param {Array} errorDataArray - 錯誤資料陣列
-     * @returns {Promise<Object>} 操作結果
-     */
-    async batchLogErrors(errorDataArray) {
-        try {
-            let successCount = 0;
-            let failureCount = 0;
-            const results = [];
-
-            for (const errorData of errorDataArray) {
-                const result = await this.logError(
-                    errorData.errorType,
-                    errorData.errorMessage,
-                    errorData.playerUUID,
-                    errorData.additionalInfo
-                );
-
-                results.push(result);
-                if (result.success) {
-                    successCount++;
-                } else {
-                    failureCount++;
-                }
-            }
-
-            Logger.info(`[ErrorHistoryService.batchLogErrors] 批量記錄完成: 成功 ${successCount}, 失敗 ${failureCount}`);
-
-            return {
-                success: true,
-                successCount,
-                failureCount,
-                totalCount: errorDataArray.length,
-                results
-            };
-        } catch (error) {
-            Logger.error(`[ErrorHistoryService.batchLogErrors] 批量記錄錯誤失敗:`, error);
-            return {
-                success: false,
-                message: error.message || '系統錯誤',
-                successCount: 0,
-                failureCount: 0,
-                totalCount: 0
-            };
-        }
-    }
 }
 
-module.exports = new ErrorHistoryService();
+const errorHistoryService = new ErrorHistoryService();
+errorHistoryService.name = 'errorHistoryService';
+
+module.exports = errorHistoryService;

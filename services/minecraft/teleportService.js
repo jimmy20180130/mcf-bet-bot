@@ -1,4 +1,4 @@
-const { client, mcClient } = require('../../core/client');
+const { client } = require('../../core/client');
 const Logger = require('../../utils/logger');
 const userRepository = require('../../repositories').userRepository;
 
@@ -12,13 +12,13 @@ class TeleportService {
         const spawnedHandler = (bot) => {
             this.setBot(bot);
         };
-        mcClient.on('spawned', spawnedHandler);
-        this.eventHandlers.push({ event: 'spawned', listener: spawnedHandler });
+        client.on('mcSpawned', spawnedHandler);
+        this.eventHandlers.push({ event: 'mcSpawned', listener: spawnedHandler });
 
         const tpRequestHandler = async ({ bot, playerId }) => {
             await this.handleTpRequest(playerId);
         };
-        mcClient.on('tpRequest', tpRequestHandler);
+        client.on('tpRequest', tpRequestHandler);
         this.eventHandlers.push({ event: 'tpRequest', listener: tpRequestHandler });
     }
 
@@ -28,7 +28,7 @@ class TeleportService {
         
         // 移除所有事件監聽器
         for (const handler of this.eventHandlers) {
-            mcClient.removeListener(handler.event, handler.listener);
+            client.removeListener(handler.event, handler.listener);
         }
         this.eventHandlers = [];
     }
@@ -69,5 +69,6 @@ class TeleportService {
 }
 
 const teleportService = new TeleportService();
+teleportService.name = 'teleportService';
 
 module.exports = teleportService;

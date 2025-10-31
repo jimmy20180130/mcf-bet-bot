@@ -1,11 +1,9 @@
 const mineflayer = require('mineflayer');
 const Logger = require('../utils/logger');
-const { client, mcClient } = require('./client');
+const { client } = require('./client');
 const serviceManager = require('../services/serviceManager');
 const blacklistService = require('../services/general/blacklistService');
 
-// TODO: implement chat utils
-// TODO: chat replace § with &
 class Bot {
     constructor(options) {
         this.options = options;
@@ -23,7 +21,7 @@ class Bot {
     start() {
         this.isManualStop = false;
         this.bot = mineflayer.createBot(this.options);
-        
+
         // 設置 spawn 超時計時器
         this.spawnTimeout = setTimeout(() => {
             Logger.warn(`Bot 啟動後 ${this.spawnTimeoutDuration / 1000} 秒內未收到 spawn 事件，判斷為連線失敗`);
@@ -33,22 +31,29 @@ class Bot {
                 this.onEnd('spawn 超時')
             }
         }, this.spawnTimeoutDuration);
-        
+
         this.bot.once('spawn', this.onSpawn.bind(this));
         this.bot.on('message', this.onMessage.bind(this));
         this.bot.on('error', this.onError.bind(this));
         this.bot.on('end', this.onEnd.bind(this));
+        this.bot.on('kicked', this.onKicked.bind(this));
+    }
+
+    // 避免每個原因都是 socket closed
+    onKicked(reason, loggedIn) {
+        Logger.warn(`Bot 被踢出: ${reason}`);
+        client.emit('mcKicked', { reason, loggedIn });
     }
 
     stop() {
         this.isManualStop = true;
-        
+
         // 清除 spawn 超時計時器
         if (this.spawnTimeout) {
             clearTimeout(this.spawnTimeout);
             this.spawnTimeout = null;
         }
-        
+
         if (this.bot) {
             this.bot.end('程式主動關閉');
         }
@@ -60,11 +65,13 @@ class Bot {
             clearTimeout(this.spawnTimeout);
             this.spawnTimeout = null;
         }
-        
+
         this.reconnectAttempts = 0; // 重置重連次數
-        
-        mcClient.emit('spawned', this.bot);
-        
+
+        client.emit('mcSpawned', this.bot);
+
+        client.mcBot = this.bot;
+
         // 要等到 spawn 完以後才能設 pattern
         // TODO: pattern 改為外部匯入的方式，避免到時候羅國貓又在皮
         this.bot.addChatPattern('command', /^\[([A-Za-z0-9_]+) -> 您\] ([\p{L}\p{N}_]+)\s*(.*)$/u);
@@ -86,26 +93,26 @@ class Bot {
 
         this.bot.addChatPattern('generalCannotSend', new RegExp(`^\[系統\] 無法傳送訊息`))
 
-        this.bot.on('chat:epayProcessing', () => mcClient.emit('epayProcessing'));
-        this.bot.on('chat:epayNoMoney', (matches) => mcClient.emit('epayNoMoney', matches));
-        this.bot.on('chat:epayNotSamePlace', () => mcClient.emit('epayNotSamePlace'));
-        this.bot.on('chat:epaySuccess', (matches) => mcClient.emit('epaySuccess', matches));
-        this.bot.on('chat:epayNegative', () => mcClient.emit('epayNegative'));
-        //this.bot.on('chat:epayInstructions', () => mcClient.emit('epayNotSamePlace'));
+        this.bot.on('chat:epayProcessing', () => client.emit('epayProcessing'));
+        this.bot.on('chat:epayNoMoney', (matches) => client.emit('epayNoMoney', matches));
+        this.bot.on('chat:epayNotSamePlace', () => client.emit('epayNotSamePlace'));
+        this.bot.on('chat:epaySuccess', (matches) => client.emit('epaySuccess', matches));
+        this.bot.on('chat:epayNegative', () => client.emit('epayNegative'));
+        //this.bot.on('chat:epayInstructions', () => client.emit('epayNotSamePlace'));
 
-        this.bot.on('chat:cpaySuccess', (matches) => mcClient.emit('cpaySuccess', matches));
-        this.bot.on('chat:cpayDifferentName', () => mcClient.emit('cpayDifferentName'));
-        this.bot.on('chat:cpayNoMoney', (matches) => mcClient.emit('cpayNoMoney', matches));
+        this.bot.on('chat:cpaySuccess', (matches) => client.emit('cpaySuccess', matches));
+        this.bot.on('chat:cpayDifferentName', () => client.emit('cpayDifferentName'));
+        this.bot.on('chat:cpayNoMoney', (matches) => client.emit('cpayNoMoney', matches));
 
-        this.bot.on('chat:generalCannotSend', () => mcClient.emit('generalCannotSend'));
+        this.bot.on('chat:generalCannotSend', () => client.emit('generalCannotSend'));
 
         this.bot.on('chat:command', this.handleCommand.bind(this));
         this.bot.on('chat:getEmerald', this.handleGetEmerald.bind(this));
         this.bot.on('chat:getCoin', this.handleGetCoin.bind(this));
         this.bot.on('chat:tpRequest', this.handleTpRequest.bind(this));
 
-        Logger.debug(`Jimmy Bot 已上線 (v=${this.bot.version})`);
-        this.bot.chat(`Jimmy Bot 已上線 (v=${this.bot.version})`);
+        Logger.debug(`Jimmy Bot 已上線 (v=${client.version}, mc=${this.bot.version})`);
+        this.bot.chat(`Jimmy Bot 已上線 (v=${client.version}, mc=${this.bot.version})`);
     }
 
     async handleCommand(matches) {
@@ -115,13 +122,14 @@ class Bot {
         const m = text.match(regex);
         if (!m) return;
         const playerId = m[1];
+        if (playerId === this.bot.username) return; // ignore self
         const commandName = m[2];
         const args = m[3].trim();
-        const command = Object.values(mcClient.commands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
+        const command = Object.values(client.mcCommands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
 
         const isBlacklisted = await blacklistService.isBlacklisted(playerId);
         if (isBlacklisted.result && isBlacklisted.reason != 'NO_ACCEPT_EULA') {
-            Logger.info(`封鎖指令: ${playerId} 嘗試使用 ${commandName} ${args}`);
+            Logger.info(`封鎖指令: ${playerId} 嘗試使用 ${commandName} ${args}，該使用者在黑名單內`);
             return;
         } else if (isBlacklisted.result && isBlacklisted.reason == 'NO_ACCEPT_EULA' && (command && command.name !== 'agreeEULA')) {
             Logger.info(`封鎖指令: ${playerId} 嘗試使用 ${commandName} ${args}，但尚未接受 EULA`);
@@ -140,7 +148,7 @@ class Bot {
             this.depositQueue.push({ playerId, time: Date.now() });
         }
 
-        mcClient.emit('command', { bot: this.bot, playerId, commandName, args });
+        client.emit('mcCommand', { bot: this.bot, playerId, commandName, args });
     }
 
     async handleGetEmerald(matches) {
@@ -155,12 +163,12 @@ class Bot {
         // check if user is existed in depositQueue, if yes, emit deposit event and remove from queue
         const depositData = this.depositQueue.find(d => d.playerId === playerId);
         if (depositData) {
-            mcClient.emit('deposit', { bot: this.bot, playerId, amount, type: '&a綠寶石' });
+            client.emit('mcDeposit', { bot: this.bot, playerId, amount, type: '&a綠寶石' });
             this.depositQueue = this.depositQueue.filter(d => d.playerId !== playerId);
         } else {
             // clean timeout deposits
             this.depositQueue = this.depositQueue.filter(d => d.time + 20000 > Date.now());
-            mcClient.emit('getEmerald', { bot: this.bot, playerId, amount, currentAmount });
+            client.emit('getEmerald', { bot: this.bot, playerId, amount, currentAmount });
         }
     }
 
@@ -176,12 +184,12 @@ class Bot {
         // check if user is existed in depositQueue, if yes, emit deposit event and remove from queue
         const depositData = this.depositQueue.find(d => d.playerId === playerId);
         if (depositData && depositData.time + 20000 > Date.now()) { // 20 seconds
-            mcClient.emit('deposit', { bot: this.bot, playerId, amount, type: '&6村民錠' });
+            client.emit('deposit', { bot: this.bot, playerId, amount, type: '&6村民錠' });
             this.depositQueue = this.depositQueue.filter(d => d.playerId !== playerId);
         } else {
             // clean timeout deposits
             this.depositQueue = this.depositQueue.filter(d => d.time + 20000 > Date.now());
-            mcClient.emit('getCoin', { bot: this.bot, playerId, amount, currentAmount });
+            client.emit('getCoin', { bot: this.bot, playerId, amount, currentAmount });
         }
     }
 
@@ -193,11 +201,11 @@ class Bot {
         let m2 = regex2.exec(text);
         if (!m1 && !m2) return;
         const playerId = m1 ? m1[1] : m2[1];
-        mcClient.emit('tpRequest', { bot: this.bot, playerId });
+        client.emit('tpRequest', { bot: this.bot, playerId });
     }
 
     onMessage(message) {
-        mcClient.emit('message', message.toString());
+        client.emit('message', message.toString());
         Logger.info(message.toAnsi())
     }
 
@@ -207,13 +215,13 @@ class Bot {
 
     async onEnd(reason) {
         Logger.warn(`Bot 斷線: ${reason || '未知原因'}`);
-        
+
         // 清除 spawn 超時計時器
         if (this.spawnTimeout) {
             clearTimeout(this.spawnTimeout);
             this.spawnTimeout = null;
         }
-        
+
         // 如果是手動停止，不要重連
         if (this.isManualStop) {
             Logger.info('手動停止，不會重新連線');
@@ -237,10 +245,10 @@ class Bot {
         setTimeout(async () => {
             try {
                 Logger.info('開始重新連線...');
-                
+
                 // 重新初始化服務
                 await serviceManager.initialize();
-                
+
                 // 重新啟動 bot
                 this.start();
             } catch (error) {

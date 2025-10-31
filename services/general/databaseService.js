@@ -1,6 +1,7 @@
 const { open } = require('lmdb');
 const path = require('path');
 const Logger = require('../../utils/logger');
+
 // TODO: 清理不必要的垃圾
 class DatabaseService {
     constructor() {
@@ -8,35 +9,26 @@ class DatabaseService {
         this.dbPath = path.join(__dirname, '..', '..', 'data');
     }
 
-    /**
-     * 初始化 LMDB 資料庫
-     */
-    init() {
+    async init(mcBot, dcBot) {
         try {
-            this.db = open({
+            this.db = await open({
                 path: this.dbPath,
-                compression: true, // 啟用壓縮以節省空間
-                encoding: 'msgpack', // 使用 MessagePack 編碼，支援各種資料類型
+                compression: true,
+                encoding: 'msgpack',
             });
             
-            Logger.info('[DatabaseService.init] LMDB 資料庫初始化成功');
+            Logger.info('[DatabaseService.init] 資料庫初始化成功');
             Logger.debug(`[DatabaseService.init] 資料庫路徑: ${this.dbPath}`);
         } catch (error) {
-            Logger.error('[DatabaseService.init] LMDB 資料庫初始化失敗:', error);
+            Logger.error('[DatabaseService.init] 資料庫初始化失敗:', error);
             throw error;
         }
     }
 
-    /**
-     * 寫入資料到資料庫
-     * @param {string} key - 資料的鍵值
-     * @param {any} value - 要儲存的資料（可以是任何可序列化的資料類型）
-     * @returns {Promise<boolean>} 是否寫入成功
-     */
     async put(key, value) {
         try {
             if (!this.db) {
-                throw new Error('資料庫尚未初始化');
+                throw new Error('[DatabaseService.put] 資料庫尚未初始化');
             }
 
             await this.db.put(key, value);
@@ -48,15 +40,10 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 從資料庫讀取資料
-     * @param {string} key - 資料的鍵值
-     * @returns {Promise<any|null>} 讀取到的資料，如果不存在則回傳 null
-     */
     async get(key) {
         try {
             if (!this.db) {
-                throw new Error('資料庫尚未初始化');
+                throw new Error('[DatabaseService.get] 資料庫尚未初始化');
             }
 
             const value = await this.db.get(key);
@@ -73,15 +60,10 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 刪除資料庫中的資料
-     * @param {string} key - 要刪除的資料鍵值
-     * @returns {Promise<boolean>} 是否刪除成功
-     */
     async remove(key) {
         try {
             if (!this.db) {
-                throw new Error('資料庫尚未初始化');
+                throw new Error('[DatabaseService.remove] 資料庫尚未初始化');
             }
 
             const success = await this.db.remove(key);
@@ -97,15 +79,10 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 檢查資料是否存在
-     * @param {string} key - 要檢查的資料鍵值
-     * @returns {Promise<boolean>} 資料是否存在
-     */
     async exists(key) {
         try {
             if (!this.db) {
-                throw new Error('資料庫尚未初始化');
+                throw new Error('[DatabaseService.exists] 資料庫尚未初始化');
             }
 
             const value = await this.db.get(key);
@@ -116,15 +93,11 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 批量寫入資料
-     * @param {Object} entries - 要寫入的資料物件，格式為 { key1: value1, key2: value2, ... }
-     * @returns {Promise<boolean>} 是否寫入成功
-     */
+    // TODO: 檢查是否需要此方法
     async putBatch(entries) {
         try {
             if (!this.db) {
-                throw new Error('資料庫尚未初始化');
+                throw new Error('[DatabaseService.putBatch] 資料庫尚未初始化');
             }
 
             // 使用交易批量寫入
@@ -142,11 +115,7 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 獲取所有符合前綴的鍵值
-     * @param {string} prefix - 鍵值前綴
-     * @returns {Promise<string[]>} 符合前綴的所有鍵值
-     */
+    // TODO: 檢查是否需要此方法
     async getKeys(prefix = '') {
         try {
             if (!this.db) {
@@ -170,11 +139,7 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 獲取所有符合前綴的鍵值對
-     * @param {string} prefix - 鍵值前綴
-     * @returns {Promise<Object>} 符合前綴的所有鍵值對
-     */
+    // TODO: 檢查是否需要此方法
     async getRange(prefix = '') {
         try {
             if (!this.db) {
@@ -198,10 +163,7 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 清空資料庫
-     * @returns {Promise<boolean>} 是否清空成功
-     */
+    // TODO: 檢查是否需要此方法
     async clear() {
         try {
             if (!this.db) {
@@ -217,9 +179,6 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 關閉資料庫連接
-     */
     async close() {
         try {
             if (this.db) {
@@ -232,10 +191,7 @@ class DatabaseService {
         }
     }
 
-    /**
-     * 獲取資料庫統計資訊
-     * @returns {Promise<Object>} 資料庫統計資訊
-     */
+    // TODO: 檢查是否需要此方法
     async getStats() {
         try {
             if (!this.db) {
@@ -250,11 +206,7 @@ class DatabaseService {
             return null;
         }
     }
-
-    /**
-     * 檢查資料庫是否已初始化
-     * @returns {boolean} 資料庫是否已初始化
-     */
+    
     isInitialized() {
         return this.db !== null;
     }
@@ -262,5 +214,6 @@ class DatabaseService {
 
 // 創建單例實例
 const databaseService = new DatabaseService();
+databaseService.name = 'databaseService';
 
 module.exports = databaseService;

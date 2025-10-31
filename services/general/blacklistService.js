@@ -1,6 +1,8 @@
 const userRepository = require('../../repositories/').userRepository;
 const userinfoService = require('./userInfoService');
+const Logger = require('../../utils/logger');
 const { DatabaseError } = require('../../utils/errors');
+
 // TODO: auto remove blacklist status if is expired
 // blacklist and cooldown service
 class BlacklistService {
@@ -9,8 +11,17 @@ class BlacklistService {
         this.cooldownCache = new Map(); // key: playerUUID, value: timestamp when last command executed
     }
 
+    async init() {
+        Logger.debug('[BlacklistService.init] 初始化 BlacklistService');
+    }
+
+    async cleanup() {
+        Logger.debug('[BlacklistService.cleanup] 清理 BlacklistService');
+        this.blacklistCache.clear();
+        this.cooldownCache.clear();
+    }
+
     async isBlacklisted(playerID) {
-        // userInfoService 現在會直接拋出錯誤，不需要在這裡處理
         const playerUUID = await userinfoService.getMinecraftUUID(playerID);
         let user = await userRepository.getUserByUUID(playerUUID)
 
@@ -39,7 +50,7 @@ class BlacklistService {
                 notified: userBlacklist.notified,
                 originalReason: userBlacklist.originalReason,
                 originalStatus: userBlacklist.originalStatus,
-                eula: userBlacklist.eula !== false, // null or true means accepted
+                eula: userBlacklist.eula !== false,
             }
         } else {
             // 找不到 blacklist 資訊就拋出錯誤
@@ -90,4 +101,7 @@ class BlacklistService {
     }
 }
 
-module.exports = new BlacklistService()
+const blacklistService = new BlacklistService();
+blacklistService.name = 'blacklistService';
+
+module.exports = blacklistService;

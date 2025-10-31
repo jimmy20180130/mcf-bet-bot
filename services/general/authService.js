@@ -6,9 +6,19 @@
 // 1. authService 與驗證伺服器建立 websocket 連線
 // 2. 收到綁定完成的訊息後紀錄到資料庫內
 
+const Logger = require('../../utils/logger');
+
 class AuthService {
     constructor() {
         this.globalBlacklist = []
+    }
+
+    async init() {
+        Logger.debug('[AuthService.init] 初始化 AuthService');
+    }
+
+    async cleanup() {
+        Logger.debug('[AuthService.cleanup] 清理 AuthService');
     }
 
     async connect() {
@@ -16,4 +26,7 @@ class AuthService {
     }
 }   
 
-module.exports = new AuthService()
+const authService = new AuthService();
+authService.name = 'authService';
+
+module.exports = authService;

@@ -1,6 +1,5 @@
 const Logger = require("../utils/logger");
-const fs = require('fs');
-const { mcClient } = require('./client');
+const { client } = require('./client');
 const serviceManager = require('../services/serviceManager');
 const mcBot = require('./mcBot');
 const dcBot = require('./dcBot');
@@ -11,20 +10,22 @@ const rl = require('readline').createInterface({
 
 const bot = new mcBot({
     username: 'saraun',
-    host: 'proxy-net-5.mcfallout.net',
+    host: 'proxy-net-6.mcfallout.net',
     port: 25565,
     auth: 'microsoft',
     version: '1.20.1'
-})
+});
 
-// 註冊所有服務
-function registerServices() {
-    // Minecraft 專屬服務
+async function initServices() {
+    Logger.info('[Core] 正在註冊服務...');
+
+    // minecraft
     serviceManager.register({ name: 'paymentService', path: '../services/minecraft/paymentService' });
     serviceManager.register({ name: 'betService', path: '../services/minecraft/betService' });
     serviceManager.register({ name: 'teleportService', path: '../services/minecraft/teleportService' });
+    serviceManager.register({ name: 'chatService', path: '../services/minecraft/chatService' });
 
-    // General 服務
+    // general
     serviceManager.register({ name: 'authService', path: '../services/general/authService' });
     serviceManager.register({ name: 'blacklistService', path: '../services/general/blacklistService' });
     serviceManager.register({ name: 'databaseService', path: '../services/general/databaseService' });
@@ -35,42 +36,41 @@ function registerServices() {
     serviceManager.register({ name: 'ticketService', path: '../services/general/ticketService' });
     serviceManager.register({ name: 'userInfoService', path: '../services/general/userInfoService' });
 
-    // Commands 處理器
-    serviceManager.register({ name: 'commandHandler', path: '../commands/index' });
-}
+    // command handler
+    serviceManager.register({ name: 'commandHandler', path: '../commands/minecraft/index' });
 
-// 初始化所有服務
-async function initializeServices() {
-    registerServices();
     await serviceManager.initialize();
 }
 
-// 啟動應用
 async function start() {
-    // 先啟動 Discord bot
-    Logger.info('正在啟動 Discord bot...');
+    Logger.info('[Core] 正在啟動 Discord bot...');
     await dcBot.init();
-    Logger.info('Discord bot 啟動完成');
-    
-    // 再啟動 Minecraft bot
-    Logger.info('正在啟動 Minecraft bot...');
-    await initializeServices();
+
+    Logger.info('[Core] 正在啟動 Minecraft bot...');
     bot.start();
-    Logger.info('Minecraft bot 啟動完成');
+
+    // 失敗則直接關閉
+    try {
+        await initServices();
+
+    } catch (e) {
+        Logger.error(`[Core] 初始化服務失敗，若設定無誤，請回報管理員: ${e.message}`, e);
+        process.exit(1)
+    }
 }
 
 start();
 
 rl.on('line', (input) => {
-    if (mcClient.botInstance) mcClient.botInstance.chat(input);
+    if (client.mcBot) client.mcBot.chat(input);
 });
 
 process.on('uncaughtException', (err) => {
-    Logger.error('Uncaught Exception:', err);
+    Logger.error('[Core] 若設定無誤，請回報管理員: Uncaught Exception:', err);
 });
 process.on('unhandledRejection', (err) => {
-    Logger.error('Unhandled Rejection:', err);
+    Logger.error('[Core] 若設定無誤，請回報管理員: Unhandled Rejection:', err);
 });
 process.on('uncaughtExceptionMonitor', (err) => {
-    Logger.error('Uncaught Exception Monitor:', err);
+    Logger.error('[Core] 若設定無誤，請回報管理員: Uncaught Exception Monitor:', err);
 });

@@ -2,7 +2,7 @@
 const betType = 'normal';
 module.exports.type = betType;
 
-const { client, mcClient } = require('../../core/client');
+const { client } = require('../../core/client');
 const Logger = require('../../utils/logger');
 const paymentService = require('./paymentService');
 const errorHandler = require('../general/errorHandler');
@@ -14,59 +14,49 @@ const userInfoService = require('../general/userInfoService');
 const betRepository = require('../../repositories/').betRepository;
 const blacklistService = require('../general/blacklistService');
 const { BetError, UserError, PaymentError } = require('../../utils/errors');
+const chatService = require('./chatService');
 
 class BetService {
     constructor() {
         // TODO: implement bet task cache
         this.bets = [];
-        this.bot = null;
         this.eventHandlers = [];
         this.taskInterval = null;
     }
 
     init() {
-        const spawnedHandler = (bot) => {
-            this.setBot(bot);
-            this.startProcessTasks();
-        };
-        mcClient.on('spawned', spawnedHandler);
-        this.eventHandlers.push({ event: 'spawned', listener: spawnedHandler });
+        this.startProcessTasks();
 
         const getEmeraldHandler = async ({ bot, playerId, amount, currentAmount }) => {
             await processBetRequest({ bot, playerId, amount, currentAmount, currency: 'emerald' });
         };
-        mcClient.on('getEmerald', getEmeraldHandler);
+        client.on('getEmerald', getEmeraldHandler);
         this.eventHandlers.push({ event: 'getEmerald', listener: getEmeraldHandler });
 
         const getCoinHandler = async ({ bot, playerId, amount, currentAmount }) => {
             await processBetRequest({ bot, playerId, amount, currentAmount, currency: 'coin' });
         };
-        mcClient.on('getCoin', getCoinHandler);
+        client.on('getCoin', getCoinHandler);
         this.eventHandlers.push({ event: 'getCoin', listener: getCoinHandler });
     }
 
     cleanup() {
         Logger.debug('[BetService.cleanup] 清理 BetService');
-        
+
         // 清理任務佇列
         this.bets = [];
-        this.bot = null;
-        
+
         // 停止任務處理
         if (this.taskInterval) {
             clearInterval(this.taskInterval);
             this.taskInterval = null;
         }
-        
+
         // 移除所有事件監聽器
         for (const handler of this.eventHandlers) {
-            mcClient.removeListener(handler.event, handler.listener);
+            client.removeListener(handler.event, handler.listener);
         }
         this.eventHandlers = [];
-    }
-
-    setBot(bot) {
-        this.bot = bot;
     }
 
     addTask(betTask) {
@@ -79,19 +69,32 @@ class BetService {
     }
 
     startProcessTasks() {
-        // 防止重複啟動
         if (this.taskInterval) {
             Logger.debug('[BetService.startProcessTasks] 任務處理已在運行中');
             return;
         }
 
-        this.taskInterval = setInterval(() => {
-            if (this.bets.length > 0 && this.bot) {
-                const betTask = this.bets.shift();
-                Logger.info(`[BetService] 處理下注任務: ${JSON.stringify(betTask)}`);
-                this.processTask(betTask);
+        const processNext = async () => {
+            if (this.bets.length === 0 || !client.mcBot) {
+                this.taskInterval = setTimeout(processNext, 500);
+                return;
             }
-        }, 500); // Check every 0.5 second
+
+            const betTask = this.bets.shift();
+            Logger.info(`[BetService] 處理下注任務: ${JSON.stringify(betTask)}`);
+
+            try {
+                await this.processTask(betTask); // 等待整個下注＋轉帳流程結束
+            } catch (err) {
+                Logger.error('[BetService] 任務執行錯誤:', err);
+            } finally {
+                // 任務間隔 0.5 秒再執行下一筆
+                this.taskInterval = setTimeout(processNext, 500);
+            }
+        };
+
+        // 啟動任務循環
+        processNext();
     }
 
     async processTask(task) {
@@ -118,10 +121,11 @@ class BetService {
                     returnAmount: returnAmount
                 });
 
-                await paymentService.epay(task.playerId, returnAmount);
-
                 // [11:11:11] &c[ADMIN] &f&lJimmy4Real &r&f贏得了 &6&l100,000,000,000 &f個&a綠寶石 &7(&f賠率: &e1.85+1&7)
-                this.bot.chat(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l中獎 &6${addCommas(task.amount)} &7-> &6&l${addCommas(returnAmount)} &a綠寶石 &7(&e1.85${task.userRank ? `+${task.userRank.bonusOdds}` : ''}&7)`);
+                chatService.addMessage(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l中獎 &6${addCommas(task.amount)} &7-> &6&l${addCommas(returnAmount)} &a綠寶石 &7(&e1.85${task.userRank ? `+${task.userRank.bonusOdds}` : ''}&7)`);
+
+                await paymentService.epay(task.playerId, returnAmount);
+                
             } else if (result === 'lose') {
                 returnAmount = 0;
                 await this._logBetResult(task, 'lose', {
@@ -129,17 +133,17 @@ class BetService {
                     bonusOdds: task.userRank ? task.userRank.bonusOdds : 0,
                     returnAmount: 0
                 });
-                this.bot.chat(`[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}] &f&l${task.playerId} &c&l未中獎`);
+                chatService.addMessage(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l未中獎`);
             }
         } catch (error) {
             Logger.error(`[BetService.processTask] ${task.playerId} 下注失敗:`, error);
-            
+
             // 判斷是否為超時類錯誤（超時錯誤只通知，不退款）
-            const isTimeoutError = (error instanceof PaymentError && error.code === 'PAYMENT_TIMEOUT');
-            
+            const isTimeoutError = (error instanceof PaymentError || error.code === 'PAYMENT_TIMEOUT' || error.code == 'TIMEOUT');
+
             // 記錄錯誤到資料庫（不發送訊息給玩家）
             const errorResult = await errorHandler.handle(error, task.playerId, task.playerUUID, {
-                bot: null, // 不通知玩家，我們手動處理通知
+                bot: null,
                 operation: 'bet',
                 details: {
                     betType: betType,
@@ -150,37 +154,37 @@ class BetService {
             });
 
             const errorID = errorResult.errorID || '無';
-            
+
             if (isTimeoutError) {
                 // 超時錯誤：只通知玩家，不退款
                 if (result == 'return') {
-                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，若您&c沒收到 &b${addCommas(task.amount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
+                    chatService.addMessage(`/m ${task.playerId} &f轉帳超時，若您&c沒收到 &b${addCommas(task.amount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result == 'win') {
-                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，若您&c沒收到&f您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
+                    chatService.addMessage(`/m ${task.playerId} &f轉帳超時，若您&c沒收到&f您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result == 'lose') {
-                    this.bot.chat(`/m ${task.playerId} &f轉帳超時，您未中獎 &7(錯誤ID: &c${errorID}&7)`);
+                    chatService.addMessage(`/m ${task.playerId} &f轉帳超時，您未中獎 &7(錯誤ID: &c${errorID}&7)`);
                 }
             } else {
                 // 非超時錯誤：退款給玩家
                 // 獲取錯誤的詳細原因
                 const errorReason = error.message || '未知錯誤';
-                
+
                 if (result === 'return') {
-                    this.bot.chat(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您下注的 &b${addCommas(task.amount)} &f個&a綠寶石 &7(錯誤ID: &c${errorID}&7)`);
+                    chatService.addMessage(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您下注的 &b${addCommas(task.amount)} &f個&a綠寶石 &7(錯誤ID: &c${errorID}&7)`);
                     await paymentService.epay(task.playerId, returnAmount).catch(async (payError) => {
                         await errorHandler.handle(payError, task.playerId, task.playerUUID, {
-                            bot: this.bot,
+                            bot: client.mcBot,
                             operation: 'bet_refund',
                             details: { amount: returnAmount, currency: 'emerald', reason: 'bet_failed' }
                         });
                     });
                 } else if (result === 'lose') {
-                    this.bot.chat(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，您未中獎 &7(錯誤ID: &c${errorID}&7)`);
+                    chatService.addMessage(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，您未中獎 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result === 'win') {
-                    this.bot.chat(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石 &7(錯誤ID: &c${errorID}&7)`);
+                    chatService.addMessage(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石 &7(錯誤ID: &c${errorID}&7)`);
                     await paymentService.epay(task.playerId, returnAmount).catch(async (payError) => {
                         await errorHandler.handle(payError, task.playerId, task.playerUUID, {
-                            bot: this.bot,
+                            bot: client.mcBot,
                             operation: 'bet_refund',
                             details: { amount: returnAmount, currency: 'emerald', reason: 'bet_win_failed' }
                         });
@@ -206,8 +210,8 @@ class BetService {
 
     async _clickRedstoneDust(block = null, timeout = 10000) {
         if (!block) {
-            block = await this.bot.findBlock({
-                point: this.bot.entity.position,
+            block = await client.mcBot.findBlock({
+                point: client.mcBot.entity.position,
                 matching: (block) => block.name === "redstone_wire",
                 maxDistance: 5,
                 count: 1
@@ -216,15 +220,15 @@ class BetService {
 
         if (!block) throw BetError.redstoneNotFound();
 
-        await activateBlock(this.bot, block)
+        await activateBlock(client.mcBot, block)
 
-        const noPermListener = this.bot.awaitMessage(/^\[領地\] 您沒有(.+)/, timeout)
+        const noPermListener = client.mcBot.awaitMessage(/^\[領地\] 您沒有(.+)/, timeout)
         const noPermPromise = new Promise((resolve, reject) => {
             noPermListener.then(matches => {
                 resolve({ type: 'noPermission', message: matches[1] });
             });
         });
-        const betResPromise = waitItemSpawn(this.bot, { "180": 'win', "195": 'lose' }, timeout)
+        const betResPromise = waitItemSpawn(client.mcBot, { "180": 'win', "195": 'lose' }, timeout)
             .then(result => ({ type: 'betResult', result: result }));
 
         try {
@@ -264,10 +268,6 @@ class BetService {
 
 const betService = new BetService();
 
-/**
- * 驗證玩家並處理黑名單/EULA檢查
- * @returns {Object|null} 返回驗證結果 { playerUUID, user, shouldReturn } 或 null
- */
 async function validatePlayerAndBlacklist({ bot, playerId, amount, currency }) {
     const currencyConfig = {
         emerald: { name: '綠寶石', color: '&a', paymentMethod: 'epay' },
@@ -327,7 +327,7 @@ async function validatePlayerAndBlacklist({ bot, playerId, amount, currency }) {
         return null;
     } else if (blacklistInfo.result && blacklistInfo.reason != 'NO_ACCEPT_EULA') {
         // 處理被封鎖且未通知的玩家
-        await bot.chat(`/m ${playerId} 您已被&c&l封鎖使用本機器人&f，&c&l若再轉帳則視為捐款&f，封鎖原因: &c&l${ blacklistInfo.reason && blacklistInfo.reason != '' ? blacklistInfo.reason : '無' }&f，解封時間: &c&l${blacklistInfo.unbanTime == -1 ? '無限期' : new Date(blacklistInfo.unbanTime).toLocaleString('zh-TW', { hour12: false })}&f，如有疑問請洽管理員`);
+        await bot.chat(`/m ${playerId} 您已被&c&l封鎖使用本機器人&f，&c&l若再轉帳則視為捐款&f，封鎖原因: &c&l${blacklistInfo.reason && blacklistInfo.reason != '' ? blacklistInfo.reason : '無'}&f，解封時間: &c&l${blacklistInfo.unbanTime == -1 ? '無限期' : new Date(blacklistInfo.unbanTime).toLocaleString('zh-TW', { hour12: false })}&f，如有疑問請洽管理員`);
 
         await blacklistService.updateBlacklistInfo(playerId, { notified: true });
 
@@ -380,9 +380,6 @@ async function validatePlayerAndBlacklist({ bot, playerId, amount, currency }) {
     return { playerUUID, user, shouldReturn: false };
 }
 
-/**
- * 處理下注請求的共用邏輯
- */
 async function processBetRequest({ bot, playerId, amount, currentAmount, currency }) {
     const currencyConfig = {
         emerald: { name: '綠寶石', color: '&a' },
@@ -391,7 +388,7 @@ async function processBetRequest({ bot, playerId, amount, currentAmount, currenc
     const config = currencyConfig[currency];
 
     Logger.info(`[BetService.mcBotGet${currency === 'emerald' ? 'Emerald' : 'Coin'}] ${playerId} 收到${config.name}: ${amount} (目前擁有 ${currentAmount})`);
-    
+
     currentAmount = removeCommas(currentAmount);
     amount = removeCommas(amount);
 
@@ -420,12 +417,12 @@ async function processBetRequest({ bot, playerId, amount, currentAmount, currenc
         return;
     }
 
-    betService.addTask({ 
-        playerId, 
-        playerUUID, 
-        amount, 
-        user, 
-        userRank: userRank?.rank || null 
+    betService.addTask({
+        playerId,
+        playerUUID,
+        amount,
+        user,
+        userRank: userRank?.rank || null
     });
 }
 
@@ -484,5 +481,7 @@ async function handleRefund({ bot, playerId, amount, currentAmount, currency, er
             });
         });
 }
+
+betService.name = 'betService';
 
 module.exports = betService;

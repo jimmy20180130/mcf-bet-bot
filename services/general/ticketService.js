@@ -2,14 +2,19 @@ const { ticketRepository, userRepository } = require('../../repositories');
 const Logger = require('../../utils/logger');
 const { ValidationError, DatabaseError, UserError } = require('../../utils/errors');
 // TODO: 清理不必要的垃圾
-/**
- * 票券服務
- * 處理票券相關的業務邏輯，包含票券創建、兌換、管理等功能
- */
+
 class TicketService {
     constructor() {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
+    }
+
+    async init() {
+        Logger.debug('[TicketService.init] 初始化 TicketService');
+    }
+
+    async cleanup() {
+        Logger.debug('[TicketService.cleanup] 清理 TicketService');
     }
 
     /**
@@ -409,4 +414,7 @@ class TicketService {
     }
 }
 
-module.exports = new TicketService();
+const ticketService = new TicketService();
+ticketService.name = 'ticketService';
+
+module.exports = ticketService;

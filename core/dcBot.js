@@ -1,4 +1,4 @@
-const { dcClient } = require('./client');
+const { client } = require('./client');
 const { Client, Events, GatewayIntentBits, ActivityType } = require('discord.js');
 const Logger = require('../utils/logger');
 const path = require('path');
@@ -20,9 +20,6 @@ const discordClient = new Client({
     ],
 });
 
-// Discord slash commands
-dcClient.commands = new Map();
-
 let eventHandlers = [];
 
 async function init() {
@@ -42,7 +39,11 @@ async function init() {
             }],
             status: 'online'
         });
+        
+        // 發送 ready 事件到 client
+        client.emit('dcReady', readyClient);
     };
+    
     discordClient.once(Events.ClientReady, readyHandler);
     eventHandlers.push({ event: Events.ClientReady, listener: readyHandler, once: true });
 
@@ -50,7 +51,7 @@ async function init() {
     const interactionHandler = async (interaction) => {
         // 處理自動完成
         if (interaction.isAutocomplete()) {
-            const command = dcClient.commands.get(interaction.commandName);
+            const command = client.dcCommands.get(interaction.commandName);
             if (!command || !command.autocomplete) return;
 
             try {
@@ -64,7 +65,7 @@ async function init() {
         // 處理指令執行
         if (!interaction.isChatInputCommand()) return;
 
-        const command = dcClient.commands.get(interaction.commandName);
+        const command = client.dcCommands.get(interaction.commandName);
         if (!command) return;
 
         try {
@@ -100,7 +101,7 @@ function cleanup() {
     eventHandlers = [];
 
     // 清空指令列表
-    dcClient.commands.clear();
+    client.dcCommands.clear();
 
     // 登出
     if (discordClient.isReady()) {

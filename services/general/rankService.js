@@ -2,14 +2,19 @@ const { repositories } = require('../../repositories');
 const Logger = require('../../utils/logger');
 const { DatabaseError, ValidationError } = require('../../utils/errors');
 // TODO: 清理不必要的垃圾
-/**
- * 等級管理服務
- * 處理等級相關的業務邏輯，包含等級分配、獎勵計算等
- */
+
 class RankService {
     constructor() {
         this.rankRepository = repositories.rank;
         this.userRepository = repositories.user;
+    }
+
+    async init() {
+        Logger.debug('[RankService.init] 初始化 RankService');
+    }
+
+    async cleanup() {
+        Logger.debug('[RankService.cleanup] 清理 RankService');
     }
 
     /**
@@ -410,4 +415,7 @@ class RankService {
     }
 }
 
-module.exports = new RankService();
+const rankService = new RankService();
+rankService.name = 'rankService';
+
+module.exports = rankService;
