@@ -29,8 +29,11 @@ module.exports = {
                     { name: '📡 API 延遲', value: `${replyLatency}ms`, inline: true },
                     { name: '💓 WebSocket 延遲', value: `${wsLatency}ms`, inline: true }
                 )
-                .setTimestamp()
-                .setFooter({ text: 'MCF Bet Bot' });
+                .setFooter({
+                    text: "Jimmy Bot",
+                    iconURL: "https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024&format=webp&width=0&height=256",
+                })
+                .setTimestamp();
             
             // 更新回覆
             await interaction.editReply({
