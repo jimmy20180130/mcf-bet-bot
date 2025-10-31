@@ -3,7 +3,7 @@
 const userRepository = require('../../repositories/index').userRepository;
 const userInfoService = require('../../services/general/userInfoService');
 const paymentService = require('../../services/minecraft/paymentService');
-const { withErrorHandling } = require('../commandHandler');
+const { withErrorHandling } = require('../../utils/commandHandler');
 const errorHandler = require('../../services/general/errorHandler');
 
 module.exports = {

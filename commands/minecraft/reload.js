@@ -1,12 +1,13 @@
 // commands/minecraft/reload.js
 
-const { client, mcClient } = require('../../core/client')
+const { client } = require('../../core/client')
 const Logger = require('../../utils/logger');
-const { withErrorHandling } = require('../commandHandler');
+const { withErrorHandling } = require('../../utils/commandHandler');
 
 // Store pending reloads on mcClient to persist across reloads
-if (!mcClient.pendingReloads) {
-    mcClient.pendingReloads = new Map();
+// Store pending reloads on client to persist across reloads
+if (!client.pendingReloads) {
+    client.pendingReloads = new Map();
 }
 
 let reloadResultHandler = null;
@@ -14,11 +15,11 @@ let reloadResultHandler = null;
 function init() {
     reloadResultHandler = (result) => {
         const { success, commandName, message, error } = result;
-        
-        for (const [playerId, pendingCommand] of mcClient.pendingReloads.entries()) {
+
+        for (const [playerId, pendingCommand] of client.pendingReloads.entries()) {
             if (pendingCommand === commandName) {
-                const bot = mcClient.botInstance;
-                if (bot) {
+                const bot = client.mcBot;
+                if (bot && typeof bot.chat === 'function') {
                     if (success) {
                         bot.chat(`/m ${playerId} &a${message}`);
                     } else {
@@ -26,16 +27,17 @@ function init() {
                         Logger.error(`[reload] 重新載入失敗:`, error);
                     }
                 }
-                mcClient.pendingReloads.delete(playerId);
+                client.pendingReloads.delete(playerId);
             }
         }
     };
-    mcClient.on('reloadResult', reloadResultHandler);
+    // listen for minecraft reload results
+    client.on('mcReloadResult', reloadResultHandler);
 }
 
 function cleanup() {
     if (reloadResultHandler) {
-        mcClient.removeListener('reloadResult', reloadResultHandler);
+        client.removeListener('mcReloadResult', reloadResultHandler);
         reloadResultHandler = null;
     }
     // Don't clear pendingReloads during cleanup - they need to persist across reloads
@@ -60,7 +62,7 @@ async function execute(bot, playerId, args) {
 
     const commandName = args.toLowerCase();
 
-    mcClient.pendingReloads.set(playerId, commandName);
-    
-    mcClient.emit('unregisterCommand', commandName);
+    client.pendingReloads.set(playerId, commandName);
+
+    client.emit('mcUnregisterCommand', commandName);
 }

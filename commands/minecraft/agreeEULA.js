@@ -3,7 +3,7 @@
 const userRepository = require('../../repositories').userRepository;
 const userinfoService = require('../../services/general/userInfoService');
 const blacklistService = require('../../services/general/blacklistService');
-const { withErrorHandling } = require('../commandHandler');
+const { withErrorHandling } = require('../../utils/commandHandler');
 
 module.exports = {
     name: 'agreeEULA',

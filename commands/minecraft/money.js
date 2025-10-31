@@ -1,7 +1,7 @@
 // commands/minecraft/money.js
 
 const { addCommas } = require('../../utils/format');
-const { withErrorHandling } = require('../commandHandler');
+const { withErrorHandling } = require('../../utils/commandHandler');
 const Logger = require('../../utils/logger');
 
 module.exports = {

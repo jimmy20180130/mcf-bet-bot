@@ -1,18 +1,10 @@
-/**
- * 命令層錯誤處理
- * 統一處理命令執行中的錯誤
- */
-const Logger = require('../utils/logger');
+const Logger = require('./logger');
 const errorHandler = require('../services/general/errorHandler');
 const userInfoService = require('../services/general/userInfoService');
-const { ValidationError } = require('../utils/errors');
+const { ValidationError } = require('./errors');
+//TODO: add discord command handler
 
-/**
- * 包裝命令執行函數，自動處理錯誤
- * @param {string} commandName - 命令名稱
- * @param {Function} commandFn - 命令執行函數
- * @returns {Function} 包裝後的命令執行函數
- */
+// 統一 Minecraft 指令的錯誤處理
 function withErrorHandling(commandName, commandFn) {
     return async function(bot, playerId, args, ...extraArgs) {
         try {
@@ -26,19 +18,10 @@ function withErrorHandling(commandName, commandFn) {
     };
 }
 
-/**
- * 處理命令執行中的錯誤
- * @param {Object} bot - Bot 實例
- * @param {string} playerId - 玩家 ID
- * @param {Error} error - 錯誤物件
- * @param {Object} context - 額外上下文
- */
 async function handleCommandError(bot, playerId, error, context = {}) {
     try {
-        // 獲取玩家 UUID
         const playerUUID = await userInfoService.getMinecraftUUID(playerId).catch(() => null);
-        
-        // 使用新的簡化錯誤處理器
+
         await errorHandler.handle(error, playerId, playerUUID, {
             bot,
             operation: `command:${context.command}`,
@@ -47,22 +30,10 @@ async function handleCommandError(bot, playerId, error, context = {}) {
         
     } catch (handlerError) {
         Logger.error('[CommandError] 處理命令錯誤時發生異常:', handlerError);
-        // 最後的保險：至少通知用戶出錯了
+
         if (bot && playerId) {
             bot.chat(`/m ${playerId} &c系統錯誤，請聯繫管理員`);
         }
-    }
-}
-
-/**
- * Try-catch 輔助函數
- */
-async function tryCatch(fn, fallback = null) {
-    try {
-        return await fn();
-    } catch (error) {
-        Logger.error('[tryCatch] 執行失敗:', error);
-        return fallback;
     }
 }
 
@@ -83,9 +54,6 @@ function validateRequired(params, required) {
     return params;
 }
 
-/**
- * 驗證數字參數
- */
 function validateNumber(value, fieldName, options = {}) {
     const { min, max, integer = false } = options;
     
@@ -113,7 +81,6 @@ function validateNumber(value, fieldName, options = {}) {
 module.exports = {
     withErrorHandling,
     handleCommandError,
-    tryCatch,
     validateRequired,
     validateNumber
 };

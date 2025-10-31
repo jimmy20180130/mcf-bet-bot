@@ -7,7 +7,7 @@ const { addCommas } = require("../../utils/format");
 const userInfoService = require("../../services/general/userInfoService");
 const dailyRepository = require("../../repositories").dailyRepository;
 const userRepository = require("../../repositories").userRepository;
-const { withErrorHandling } = require("../commandHandler");
+const { withErrorHandling } = require("../../utils/commandHandler");
 const errorHandler = require("../../services/general/errorHandler");
 
 module.exports = {

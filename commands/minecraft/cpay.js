@@ -3,7 +3,7 @@
 const paymentService = require("../../services/minecraft/paymentService");
 const { addCommas, removeCommas } = require("../../utils/format");
 const Logger = require("../../utils/logger");
-const { withErrorHandling, validateNumber, validateRequired } = require("../commandHandler");
+const { withErrorHandling, validateNumber, validateRequired } = require("../../utils/commandHandler");
 
 module.exports = {
     name: 'cpay',

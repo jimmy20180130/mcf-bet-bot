@@ -2,7 +2,7 @@
 
 const paymentService = require("../../services/minecraft/paymentService");
 const { addCommas, removeCommas } = require("../../utils/format");
-const { withErrorHandling, validateNumber, validateRequired } = require("../commandHandler");
+const { withErrorHandling, validateNumber, validateRequired } = require("../../utils/commandHandler");
 const { ValidationError } = require("../../utils/errors");
 const Logger = require("../../utils/logger");
 
