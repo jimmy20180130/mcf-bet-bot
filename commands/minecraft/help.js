@@ -1,7 +1,7 @@
 const userinfoService = require('../../services/general/userInfoService');
 const userRepository = require('../../repositories').userRepository;
-const { mcClient } = require('../../core/client')
-const { withErrorHandling } = require('../commandHandler');
+const { client } = require('../../core/client')
+const { withErrorHandling } = require('../../utils/commandHandler');
 const Logger = require('../../utils/logger');
 
 module.exports = {
@@ -21,7 +21,7 @@ async function execute(bot, playerId, args) {
 
     if (commandName) {
         // 顯示特定指令的詳細資訊
-        const command = Object.values(mcClient.commands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
+        const command = Object.values(client.mcCommands).find(cmd => cmd.name === commandName || cmd.aliases.includes(commandName));
         if (!command) {
             bot.chat(`/m ${playerId} &c找不到指令: ${commandName}`);
             return;
@@ -35,7 +35,7 @@ async function execute(bot, playerId, args) {
         bot.chat(`/m ${playerId} &6指令: &b${command.name}, &6簡寫: &f${command.aliases.join(', ')}&f, &6說明: &f${command.description}&f, &6用法: &b${command.usage}&f, &6權限等級: &b${command.requiredPermissionLevel}`);
 
     } else {
-        const commandList = Object.values(mcClient.commands)
+        const commandList = Object.values(client.mcCommands)
             .filter(cmd => playerId === 'Jimmy4Real' || cmd.requiredPermissionLevel <= userPermissionLevel) // 顯示小於等於使用者權限
             .map(cmd => `&6${cmd.name}`);
 

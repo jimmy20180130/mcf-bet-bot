@@ -1,10 +1,10 @@
-const { withErrorHandling } = require("../commandHandler");
+const { withErrorHandling } = require("../../utils/commandHandler");
 
 module.exports = {
     name: 'example',
     aliases: [],
     description: '這是一個範例指令',
-    usage: '<args>',
+    usage: '/m bot example [args]',
     requiredPermissionLevel: 0, // default permission level
     execute: withErrorHandling('example', execute),
 }

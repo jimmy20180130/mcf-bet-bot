@@ -2,7 +2,7 @@ const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const Logger = require('../../utils/logger');
-const { dcClient } = require('../../core/client');
+const { client } = require('../../core/client');
 const toml = require('smol-toml')
 // 讀取配置
 const configPath = path.join(__dirname, '..', '..', 'config.toml');
@@ -13,36 +13,36 @@ const config = toml.parse(configContent);
 
 let eventHandlers = [];
 
-async function init(discordClient) {
+async function init() {
     // 設置重載指令的事件處理
     const unregisterCommandHandler = async (commandName) => {
         try {
             if (commandName === 'all') {
                 // 卸載所有指令
-                for (const [cmdName] of dcClient.commands) {
+                for (const [cmdName] of client.dcCommands) {
                     await unregisterCommand(cmdName);
                 }
                 await registerCommands();
-                dcClient.emit('reloadResult', { success: true, commandName, message: '所有 Discord 指令重新載入成功' });
+                client.emit('dcReloadResult', { success: true, commandName, message: '所有 Discord 指令重新載入成功' });
             } else {
                 await unregisterCommand(commandName);
                 await registerCommands(commandName);
-                dcClient.emit('reloadResult', { success: true, commandName, message: `Discord 指令 ${commandName} 重新載入成功` });
+                client.emit('dcReloadResult', { success: true, commandName, message: `Discord 指令 ${commandName} 重新載入成功` });
             }
         } catch (error) {
             Logger.error(`[Discord] 重新載入指令時發生錯誤:`, error);
-            dcClient.emit('reloadResult', { success: false, commandName, message: `重新載入失敗: ${error.message}`, error });
+            client.emit('dcReloadResult', { success: false, commandName, message: `重新載入失敗: ${error.message}`, error });
         }
     };
-    dcClient.on('unregisterDiscordCommand', unregisterCommandHandler);
-    eventHandlers.push({ event: 'unregisterDiscordCommand', listener: unregisterCommandHandler });
+    client.on('dcUnregisterCommand', unregisterCommandHandler);
+    eventHandlers.push({ event: 'dcUnregisterCommand', listener: unregisterCommandHandler });
 
     await registerCommands();
 }
 
 function cleanup() {
     // 清理所有已註冊的指令
-    for (const [cmdName, command] of dcClient.commands) {
+    for (const [cmdName, command] of client.dcCommands) {
         // 如果指令有 cleanup 方法，執行它
         if (typeof command.cleanup === 'function') {
             command.cleanup();
@@ -50,11 +50,11 @@ function cleanup() {
     }
     
     // 清空指令列表
-    dcClient.commands.clear();
+    client.dcCommands.clear();
     
     // 移除所有事件監聽器
     for (const handler of eventHandlers) {
-        dcClient.removeListener(handler.event, handler.listener);
+        client.removeListener(handler.event, handler.listener);
     }
     eventHandlers = [];
 }
@@ -71,15 +71,27 @@ async function registerCommands(commandName = 'all') {
             
             const command = require(commandPath);
             if (command && command.data && typeof command.execute === 'function') {
-                dcClient.commands.set(command.data.name, command);
-                commands.push(command.data.toJSON());
-                
+                // 更新/替換指定指令到快取的指令集合
+                client.dcCommands.set(command.data.name, command);
+
                 // 如果指令有 init 方法，執行它
                 if (typeof command.init === 'function') {
-                    command.init();
+                    try {
+                        command.init();
+                    } catch (err) {
+                        Logger.error(`[Discord] 執行 ${command.data.name} 的 init 時發生錯誤:`, err);
+                    }
                 }
-                
+
                 Logger.info(`[Discord] 指令重新載入成功: ${command.data.name}`);
+
+                // 使用目前的 client.dcCommands 建立要註冊到 Discord 的完整指令清單，
+                // 避免僅註冊單一指令而覆蓋掉其他已註冊的指令。
+                for (const [, cmd] of client.dcCommands) {
+                    if (cmd && cmd.data && typeof cmd.execute === 'function') {
+                        commands.push(cmd.data.toJSON());
+                    }
+                }
             }
         } else {
             Logger.warn(`[Discord] 指令檔案不存在: ${commandPath}`);
@@ -93,9 +105,15 @@ async function registerCommands(commandName = 'all') {
         let loadedCount = 0;
         for (const file of commandFiles) {
             const commandPath = path.join(__dirname, 'slashCommands', file);
-            const command = require(commandPath);
+            let command;
+            try {
+                command = require(commandPath);
+            } catch (error) {
+                Logger.error(`[Discord] 載入指令檔案 ${file} 時發生錯誤:`, error);
+                continue;
+            }
             if (command && command.data && typeof command.execute === 'function') {
-                dcClient.commands.set(command.data.name, command);
+                client.dcCommands.set(command.data.name, command);
                 commands.push(command.data.toJSON());
                 
                 // 如果指令有 init 方法，執行它
@@ -128,13 +146,13 @@ async function registerCommands(commandName = 'all') {
 }
 
 async function unregisterCommand(commandName) {
-    if (dcClient.commands.has(commandName)) {
-        const command = dcClient.commands.get(commandName);
+    if (client.dcCommands.has(commandName)) {
+        const command = client.dcCommands.get(commandName);
         // 如果指令有 cleanup 方法，執行它
         if (typeof command.cleanup === 'function') {
             await command.cleanup();
         }
-        dcClient.commands.delete(commandName);
+        client.dcCommands.delete(commandName);
         
         // 清除 require 快取
         const commandPath = path.join(__dirname, 'slashCommands', `${commandName}.js`);
