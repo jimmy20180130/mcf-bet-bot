@@ -2,18 +2,41 @@ class LMDBManager {
     constructor() {
         this.currentEditKey = null;
         this.currentSearchQuery = '';
+        this.currentPrefix = '';
+        this.currentPage = 1;
+        this.pageSize = 30;
+        this.totalPages = 0;
+        this.monacoEditor = null;
+        this.scrollPosition = 0;
         this.init();
     }
 
     async init() {
+        await this.initMonaco();
         this.bindEvents();
         try {
+            await this.loadPrefixes();
             await this.loadData();
             await this.loadStats();
         } catch (error) {
             console.error('初始化載入失敗:', error);
             this.showNotification('初始化失敗', 'error');
         }
+    }
+
+    async initMonaco() {
+        return new Promise((resolve) => {
+            require.config({ 
+                paths: { 
+                    vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' 
+                } 
+            });
+            
+            require(['vs/editor/editor.main'], () => {
+                console.log('Monaco Editor 已載入');
+                resolve();
+            });
+        });
     }
 
     bindEvents() {
@@ -29,8 +52,7 @@ class LMDBManager {
         document.getElementById('refresh-btn').addEventListener('click', async () => {
             try {
                 console.log('刷新按鈕被點擊');
-                // 清除搜尋並重新載入所有資料
-                await this.forceRefreshAllData();
+                await this.refreshData();
                 this.showNotification('資料已刷新', 'success');
             } catch (error) {
                 console.error('刷新按鈕錯誤:', error);
@@ -59,29 +81,86 @@ class LMDBManager {
         });
     }
 
+    async loadPrefixes() {
+        try {
+            const response = await fetch('/api/prefixes');
+            const result = await response.json();
+            
+            if (result.success) {
+                const prefixList = document.getElementById('prefix-list');
+                prefixList.innerHTML = result.prefixes.map(prefix => `
+                    <div class="prefix-item" data-prefix="${prefix}" onclick="lmdbManager.selectPrefix('${this.escapeHtml(prefix)}')">
+                        <i class="fas fa-folder"></i>
+                        <span>${this.escapeHtml(prefix)}</span>
+                    </div>
+                `).join('');
+            }
+        } catch (error) {
+            console.error('載入 prefix 列表錯誤:', error);
+        }
+    }
+
+    selectPrefix(prefix) {
+        this.currentPrefix = prefix;
+        this.currentPage = 1;
+        this.currentSearchQuery = '';
+        document.getElementById('search-input').value = '';
+        
+        // 更新側邊欄選中狀態
+        document.querySelectorAll('.prefix-item').forEach(item => {
+            item.classList.remove('active');
+            if (item.dataset.prefix === prefix) {
+                item.classList.add('active');
+            }
+        });
+        
+        this.loadData();
+    }
+
     async loadData(query = '') {
+        // 儲存滾動位置
+        const dataList = document.getElementById('data-list');
+        this.scrollPosition = dataList.scrollTop;
+        
         // 顯示載入狀態
         this.showLoading(true, '載入中...');
         
         try {
-            const endpoint = query ? `/api/search/${encodeURIComponent(query)}` : '/api/keys';
+            let endpoint;
+            if (query) {
+                endpoint = `/api/search/${encodeURIComponent(query)}`;
+            } else {
+                const params = new URLSearchParams({
+                    prefix: this.currentPrefix,
+                    page: this.currentPage,
+                    pageSize: this.pageSize
+                });
+                endpoint = `/api/keys?${params}`;
+            }
+            
             const response = await fetch(endpoint);
             const result = await response.json();
             
             if (result.success) {
-                await this.displayData(result.keys);
+                if (query) {
+                    // 搜尋結果不使用分頁
+                    await this.displayData(result.keys);
+                    this.renderPagination(1, 1, result.keys.length);
+                } else {
+                    await this.displayData(result.keys);
+                    const { page, totalPages, total } = result.pagination;
+                    this.totalPages = totalPages;
+                    this.renderPagination(page, totalPages, total);
+                }
             } else {
                 this.showNotification('載入資料失敗: ' + result.error, 'error');
-                const dataList = document.getElementById('data-list');
                 dataList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>載入失敗</h3><p>' + result.error + '</p></div>';
             }
         } catch (error) {
             console.error('載入資料錯誤:', error);
             this.showNotification('載入資料失敗', 'error');
-            const dataList = document.getElementById('data-list');
             dataList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>載入失敗</h3><p>網路錯誤或伺服器無回應</p></div>';
         }
-        // 不需要 finally，因為 displayData 會處理內容替換
     }
 
     async displayData(keys) {
@@ -142,6 +221,68 @@ class LMDBManager {
         }));
 
         dataList.innerHTML = dataItems.join('');
+        
+        // 恢復滾動位置
+        setTimeout(() => {
+            dataList.scrollTop = this.scrollPosition;
+        }, 0);
+    }
+
+    renderPagination(currentPage, totalPages, totalItems) {
+        const pagination = document.getElementById('pagination');
+        
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+        
+        let html = '<div class="pagination-info">共 ' + totalItems + ' 筆資料</div>';
+        
+        // 上一頁按鈕
+        html += `<button onclick="lmdbManager.goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i> 上一頁
+        </button>`;
+        
+        // 頁碼按鈕
+        const maxButtons = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+        let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+        
+        if (endPage - startPage < maxButtons - 1) {
+            startPage = Math.max(1, endPage - maxButtons + 1);
+        }
+        
+        if (startPage > 1) {
+            html += `<button class="page-number" onclick="lmdbManager.goToPage(1)">1</button>`;
+            if (startPage > 2) {
+                html += '<span>...</span>';
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button class="page-number ${i === currentPage ? 'active' : ''}" onclick="lmdbManager.goToPage(${i})">${i}</button>`;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += '<span>...</span>';
+            }
+            html += `<button class="page-number" onclick="lmdbManager.goToPage(${totalPages})">${totalPages}</button>`;
+        }
+        
+        // 下一頁按鈕
+        html += `<button onclick="lmdbManager.goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+            下一頁 <i class="fas fa-chevron-right"></i>
+        </button>`;
+        
+        pagination.innerHTML = html;
+    }
+
+    goToPage(page) {
+        if (page < 1 || page > this.totalPages) return;
+        this.currentPage = page;
+        this.scrollPosition = 0; // 換頁時重置滾動位置
+        this.loadData(this.currentSearchQuery);
     }
 
     formatPreview(value) {
@@ -182,14 +323,13 @@ class LMDBManager {
         if (show) {
             dataList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> ' + message + '</div>';
         }
-        // 如果 show 為 false，不做任何操作，讓 displayData 來處理內容
     }
 
     async refreshData() {
         console.log('開始重新載入資料...');
         
         try {
-            // 重新載入資料並更新統計資訊
+            await this.loadPrefixes();
             await this.loadData(this.currentSearchQuery);
             await this.loadStats();
             console.log('資料已重新載入');
@@ -199,33 +339,16 @@ class LMDBManager {
         }
     }
 
-    // 強制重新載入所有資料（忽略搜尋狀態）
-    async forceRefreshAllData() {
-        console.log('開始強制重新載入所有資料...');
-        
-        this.currentSearchQuery = '';
-        document.getElementById('search-input').value = '';
-        
-        try {
-            // 等待資料載入完成
-            await this.loadData('');
-            await this.loadStats();
-            console.log('已強制重新載入所有資料');
-        } catch (error) {
-            console.error('強制重新載入資料時發生錯誤:', error);
-            this.showNotification('重新載入失敗', 'error');
-        }
-    }
-
     async searchData() {
         const query = document.getElementById('search-input').value.trim();
         this.currentSearchQuery = query;
+        this.currentPage = 1;
+        this.scrollPosition = 0;
         
         console.log('開始搜尋:', query || '(顯示所有資料)');
         
         try {
             await this.loadData(query);
-            // 搜尋後也更新統計資訊
             await this.loadStats();
             console.log('搜尋完成');
         } catch (error) {
@@ -238,8 +361,25 @@ class LMDBManager {
         this.currentEditKey = null;
         document.getElementById('modal-title').textContent = '新增資料';
         document.getElementById('key-input').value = '';
-        document.getElementById('value-input').value = '';
         document.getElementById('key-input').disabled = false;
+        
+        // 初始化 Monaco Editor
+        if (!this.monacoEditor) {
+            this.monacoEditor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                value: '',
+                language: 'json',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on'
+            });
+        } else {
+            this.monacoEditor.setValue('');
+        }
+        
         document.getElementById('modal').style.display = 'block';
     }
 
@@ -257,7 +397,23 @@ class LMDBManager {
                 const value = typeof result.data === 'object' ? 
                     JSON.stringify(result.data, null, 2) : 
                     String(result.data);
-                document.getElementById('value-input').value = value;
+                
+                // 初始化 Monaco Editor
+                if (!this.monacoEditor) {
+                    this.monacoEditor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                        value: value,
+                        language: 'json',
+                        theme: 'vs-dark',
+                        automaticLayout: true,
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: 'on',
+                        scrollBeyondLastLine: false,
+                        wordWrap: 'on'
+                    });
+                } else {
+                    this.monacoEditor.setValue(value);
+                }
             } else {
                 this.showNotification('載入資料失敗', 'error');
                 return;
@@ -286,7 +442,6 @@ class LMDBManager {
             
             if (result.success) {
                 this.showNotification('資料刪除成功', 'success');
-                // 刪除完成後重新載入資料，保持當前搜尋狀態
                 await this.refreshData();
             } else {
                 this.showNotification('刪除失敗: ' + result.error, 'error');
@@ -302,7 +457,7 @@ class LMDBManager {
         e.preventDefault();
         
         const key = document.getElementById('key-input').value.trim();
-        const valueText = document.getElementById('value-input').value.trim();
+        const valueText = this.monacoEditor ? this.monacoEditor.getValue().trim() : '';
         
         if (!key) {
             this.showNotification('鍵值不能為空', 'error');
@@ -311,10 +466,8 @@ class LMDBManager {
 
         let value;
         try {
-            // 嘗試解析為 JSON
             value = JSON.parse(valueText);
         } catch {
-            // 如果不是有效的 JSON，就作為字串處理
             value = valueText;
         }
 
@@ -336,8 +489,7 @@ class LMDBManager {
             if (result.success) {
                 this.showNotification(isEdit ? '資料更新成功' : '資料創建成功', 'success');
                 this.closeModal();
-                // 操作完成後立即強制重新載入所有資料
-                await this.forceRefreshAllData();
+                await this.refreshData();
             } else {
                 this.showNotification((isEdit ? '更新' : '創建') + '失敗: ' + result.error, 'error');
             }
@@ -359,8 +511,10 @@ class LMDBManager {
             
             if (result.success) {
                 this.showNotification('資料庫清空成功', 'success');
-                // 清空資料庫後強制重新載入所有資料
-                await this.forceRefreshAllData();
+                this.currentPrefix = '';
+                this.currentPage = 1;
+                this.scrollPosition = 0;
+                await this.refreshData();
             } else {
                 this.showNotification('清空失敗: ' + result.error, 'error');
             }
@@ -372,6 +526,10 @@ class LMDBManager {
     closeModal() {
         document.getElementById('modal').style.display = 'none';
         this.currentEditKey = null;
+        if (this.monacoEditor) {
+            this.monacoEditor.dispose();
+            this.monacoEditor = null;
+        }
     }
 
     closeConfirmModal() {

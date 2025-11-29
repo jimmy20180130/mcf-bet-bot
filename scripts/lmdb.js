@@ -34,6 +34,7 @@ class LMDBCLIManager {
 
         // API 路由
         this.app.get('/api/keys', this.getKeys.bind(this));
+        this.app.get('/api/prefixes', this.getPrefixes.bind(this));
         this.app.get('/api/data/:key', this.getData.bind(this));
         this.app.get('/api/range/:prefix', this.getRange.bind(this));
         this.app.get('/api/range', this.getRange.bind(this));
@@ -46,11 +47,47 @@ class LMDBCLIManager {
     }
 
     // API 處理函數
+    async getPrefixes(req, res) {
+        try {
+            const allKeys = await databaseService.getKeys();
+            const prefixes = new Set();
+            
+            allKeys.forEach(key => {
+                const parts = key.split(':');
+                if (parts.length > 1) {
+                    prefixes.add(parts[0]);
+                }
+            });
+            
+            res.json({ success: true, prefixes: Array.from(prefixes).sort() });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
+
     async getKeys(req, res) {
         try {
             const prefix = req.query.prefix || '';
-            const keys = await databaseService.getKeys(prefix);
-            res.json({ success: true, keys });
+            const page = parseInt(req.query.page) || 1;
+            const pageSize = parseInt(req.query.pageSize) || 30;
+            
+            const allKeys = await databaseService.getKeys(prefix);
+            const total = allKeys.length;
+            const totalPages = Math.ceil(total / pageSize);
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+            const keys = allKeys.slice(start, end);
+            
+            res.json({ 
+                success: true, 
+                keys,
+                pagination: {
+                    page,
+                    pageSize,
+                    total,
+                    totalPages
+                }
+            });
         } catch (error) {
             res.status(500).json({ success: false, error: error.message });
         }
@@ -222,54 +259,75 @@ class LMDBCLIManager {
     <title>LMDB 資料庫管理器</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1><i class="fas fa-database"></i> LMDB 資料庫管理器</h1>
-            <div class="stats" id="stats">
-                <span class="stat-item" id="total-keys">總鍵值: 0</span>
-                <span class="stat-item">
-                    <button id="refresh-btn" class="btn btn-secondary">
-                        <i class="fas fa-sync-alt"></i> 刷新
-                    </button>
-                </span>
+    <div class="app-container">
+        <!-- 側邊欄 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-folder-tree"></i> Prefixes</h2>
             </div>
-        </header>
-
-        <main>
-            <!-- 搜尋和操作區域 -->
-            <section class="controls">
-                <div class="search-bar">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="search-input" placeholder="搜尋鍵值...">
-                    <button id="search-btn" class="btn btn-primary">搜尋</button>
+            <div class="sidebar-content">
+                <div class="prefix-item active" data-prefix="">
+                    <i class="fas fa-list"></i>
+                    <span>全部資料</span>
                 </div>
-                
-                <div class="action-buttons">
-                    <button id="add-btn" class="btn btn-success">
-                        <i class="fas fa-plus"></i> 新增資料
-                    </button>
-                    <button id="clear-btn" class="btn btn-danger">
-                        <i class="fas fa-trash"></i> 清空資料庫
-                    </button>
-                </div>
-            </section>
+                <div id="prefix-list"></div>
+            </div>
+        </aside>
 
-            <!-- 資料列表區域 -->
-            <section class="data-section">
-                <div class="data-list" id="data-list">
-                    <div class="loading" id="loading">
-                        <i class="fas fa-spinner fa-spin"></i> 載入中...
+        <!-- 主內容區 -->
+        <div class="main-container">
+            <header>
+                <h1><i class="fas fa-database"></i> LMDB 資料庫管理器</h1>
+                <div class="stats" id="stats">
+                    <span class="stat-item" id="total-keys">總鍵值: 0</span>
+                    <span class="stat-item">
+                        <button id="refresh-btn" class="btn btn-secondary">
+                            <i class="fas fa-sync-alt"></i> 刷新
+                        </button>
+                    </span>
+                </div>
+            </header>
+
+            <main>
+                <!-- 搜尋和操作區域 -->
+                <section class="controls">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-input" placeholder="搜尋鍵值...">
+                        <button id="search-btn" class="btn btn-primary">搜尋</button>
                     </div>
-                </div>
-            </section>
-        </main>
+                    
+                    <div class="action-buttons">
+                        <button id="add-btn" class="btn btn-success">
+                            <i class="fas fa-plus"></i> 新增資料
+                        </button>
+                        <button id="clear-btn" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> 清空資料庫
+                        </button>
+                    </div>
+                </section>
+
+                <!-- 資料列表區域 -->
+                <section class="data-section">
+                    <div class="data-list" id="data-list">
+                        <div class="loading" id="loading">
+                            <i class="fas fa-spinner fa-spin"></i> 載入中...
+                        </div>
+                    </div>
+                    
+                    <!-- 分頁控制 -->
+                    <div class="pagination" id="pagination"></div>
+                </section>
+            </main>
+        </div>
     </div>
 
     <!-- 模態框 -->
     <div id="modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content modal-large">
             <div class="modal-header">
                 <h2 id="modal-title">編輯資料</h2>
                 <span class="close">&times;</span>
@@ -282,7 +340,8 @@ class LMDBCLIManager {
                     </div>
                     <div class="form-group">
                         <label for="value-input">資料值 (Value):</label>
-                        <textarea id="value-input" name="value" rows="10" placeholder="輸入 JSON 格式的資料或純文字"></textarea>
+                        <div id="monaco-editor" style="height: 400px; border: 2px solid #e2e8f0; border-radius: 8px;"></div>
+                        <textarea id="value-input" name="value" style="display: none;"></textarea>
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">
@@ -322,6 +381,7 @@ class LMDBCLIManager {
     <!-- 通知區域 -->
     <div id="notification" class="notification"></div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.js"></script>
     <script src="app.js"></script>
 </body>
 </html>`;
@@ -339,6 +399,74 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     color: #333;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* 側邊欄樣式 */
+.sidebar {
+    width: 250px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.sidebar-header h2 {
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.prefix-item {
+    padding: 12px 15px;
+    margin-bottom: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #4a5568;
+}
+
+.prefix-item:hover {
+    background: #f0f0f0;
+}
+
+.prefix-item.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.prefix-item i {
+    font-size: 14px;
+}
+
+/* 主容器樣式 */
+.main-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .container {
@@ -349,9 +477,9 @@ body {
 
 header {
     background: rgba(255, 255, 255, 0.95);
-    border-radius: 15px;
+    border-radius: 0 0 15px 15px;
     padding: 20px;
-    margin-bottom: 20px;
+    margin: 0 20px 20px 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -375,6 +503,12 @@ header h1 {
 .stat-item {
     color: #666;
     font-weight: 500;
+}
+
+main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 20px 20px 20px;
 }
 
 .controls {
@@ -566,6 +700,53 @@ header h1 {
     margin-bottom: 20px;
 }
 
+/* 分頁樣式 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.pagination-info {
+    color: #666;
+    font-size: 14px;
+}
+
+.pagination button {
+    padding: 8px 16px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination .page-number {
+    min-width: 40px;
+    text-align: center;
+}
+
+.pagination .page-number.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+}
+
 /* 模態框樣式 */
 .modal {
     display: none;
@@ -588,6 +769,10 @@ header h1 {
     max-width: 600px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     overflow: hidden;
+}
+
+.modal-large {
+    max-width: 900px;
 }
 
 .modal-header {
@@ -691,6 +876,16 @@ header h1 {
 
 /* 響應式設計 */
 @media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 200px;
+    }
+    
     .container {
         padding: 10px;
     }
@@ -748,18 +943,41 @@ header h1 {
     constructor() {
         this.currentEditKey = null;
         this.currentSearchQuery = '';
+        this.currentPrefix = '';
+        this.currentPage = 1;
+        this.pageSize = 30;
+        this.totalPages = 0;
+        this.monacoEditor = null;
+        this.scrollPosition = 0;
         this.init();
     }
 
     async init() {
+        await this.initMonaco();
         this.bindEvents();
         try {
+            await this.loadPrefixes();
             await this.loadData();
             await this.loadStats();
         } catch (error) {
             console.error('初始化載入失敗:', error);
             this.showNotification('初始化失敗', 'error');
         }
+    }
+
+    async initMonaco() {
+        return new Promise((resolve) => {
+            require.config({ 
+                paths: { 
+                    vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' 
+                } 
+            });
+            
+            require(['vs/editor/editor.main'], () => {
+                console.log('Monaco Editor 已載入');
+                resolve();
+            });
+        });
     }
 
     bindEvents() {
@@ -775,8 +993,7 @@ header h1 {
         document.getElementById('refresh-btn').addEventListener('click', async () => {
             try {
                 console.log('刷新按鈕被點擊');
-                // 清除搜尋並重新載入所有資料
-                await this.forceRefreshAllData();
+                await this.refreshData();
                 this.showNotification('資料已刷新', 'success');
             } catch (error) {
                 console.error('刷新按鈕錯誤:', error);
@@ -805,29 +1022,86 @@ header h1 {
         });
     }
 
+    async loadPrefixes() {
+        try {
+            const response = await fetch('/api/prefixes');
+            const result = await response.json();
+            
+            if (result.success) {
+                const prefixList = document.getElementById('prefix-list');
+                prefixList.innerHTML = result.prefixes.map(prefix => \`
+                    <div class="prefix-item" data-prefix="\${prefix}" onclick="lmdbManager.selectPrefix('\${this.escapeHtml(prefix)}')">
+                        <i class="fas fa-folder"></i>
+                        <span>\${this.escapeHtml(prefix)}</span>
+                    </div>
+                \`).join('');
+            }
+        } catch (error) {
+            console.error('載入 prefix 列表錯誤:', error);
+        }
+    }
+
+    selectPrefix(prefix) {
+        this.currentPrefix = prefix;
+        this.currentPage = 1;
+        this.currentSearchQuery = '';
+        document.getElementById('search-input').value = '';
+        
+        // 更新側邊欄選中狀態
+        document.querySelectorAll('.prefix-item').forEach(item => {
+            item.classList.remove('active');
+            if (item.dataset.prefix === prefix) {
+                item.classList.add('active');
+            }
+        });
+        
+        this.loadData();
+    }
+
     async loadData(query = '') {
+        // 儲存滾動位置
+        const dataList = document.getElementById('data-list');
+        this.scrollPosition = dataList.scrollTop;
+        
         // 顯示載入狀態
         this.showLoading(true, '載入中...');
         
         try {
-            const endpoint = query ? \`/api/search/\${encodeURIComponent(query)}\` : '/api/keys';
+            let endpoint;
+            if (query) {
+                endpoint = \`/api/search/\${encodeURIComponent(query)}\`;
+            } else {
+                const params = new URLSearchParams({
+                    prefix: this.currentPrefix,
+                    page: this.currentPage,
+                    pageSize: this.pageSize
+                });
+                endpoint = \`/api/keys?\${params}\`;
+            }
+            
             const response = await fetch(endpoint);
             const result = await response.json();
             
             if (result.success) {
-                await this.displayData(result.keys);
+                if (query) {
+                    // 搜尋結果不使用分頁
+                    await this.displayData(result.keys);
+                    this.renderPagination(1, 1, result.keys.length);
+                } else {
+                    await this.displayData(result.keys);
+                    const { page, totalPages, total } = result.pagination;
+                    this.totalPages = totalPages;
+                    this.renderPagination(page, totalPages, total);
+                }
             } else {
                 this.showNotification('載入資料失敗: ' + result.error, 'error');
-                const dataList = document.getElementById('data-list');
                 dataList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>載入失敗</h3><p>' + result.error + '</p></div>';
             }
         } catch (error) {
             console.error('載入資料錯誤:', error);
             this.showNotification('載入資料失敗', 'error');
-            const dataList = document.getElementById('data-list');
             dataList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>載入失敗</h3><p>網路錯誤或伺服器無回應</p></div>';
         }
-        // 不需要 finally，因為 displayData 會處理內容替換
     }
 
     async displayData(keys) {
@@ -888,6 +1162,68 @@ header h1 {
         }));
 
         dataList.innerHTML = dataItems.join('');
+        
+        // 恢復滾動位置
+        setTimeout(() => {
+            dataList.scrollTop = this.scrollPosition;
+        }, 0);
+    }
+
+    renderPagination(currentPage, totalPages, totalItems) {
+        const pagination = document.getElementById('pagination');
+        
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+        
+        let html = '<div class="pagination-info">共 ' + totalItems + ' 筆資料</div>';
+        
+        // 上一頁按鈕
+        html += \`<button onclick="lmdbManager.goToPage(\${currentPage - 1})" \${currentPage === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i> 上一頁
+        </button>\`;
+        
+        // 頁碼按鈕
+        const maxButtons = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+        let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+        
+        if (endPage - startPage < maxButtons - 1) {
+            startPage = Math.max(1, endPage - maxButtons + 1);
+        }
+        
+        if (startPage > 1) {
+            html += \`<button class="page-number" onclick="lmdbManager.goToPage(1)">1</button>\`;
+            if (startPage > 2) {
+                html += '<span>...</span>';
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += \`<button class="page-number \${i === currentPage ? 'active' : ''}" onclick="lmdbManager.goToPage(\${i})">\${i}</button>\`;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += '<span>...</span>';
+            }
+            html += \`<button class="page-number" onclick="lmdbManager.goToPage(\${totalPages})">\${totalPages}</button>\`;
+        }
+        
+        // 下一頁按鈕
+        html += \`<button onclick="lmdbManager.goToPage(\${currentPage + 1})" \${currentPage === totalPages ? 'disabled' : ''}>
+            下一頁 <i class="fas fa-chevron-right"></i>
+        </button>\`;
+        
+        pagination.innerHTML = html;
+    }
+
+    goToPage(page) {
+        if (page < 1 || page > this.totalPages) return;
+        this.currentPage = page;
+        this.scrollPosition = 0; // 換頁時重置滾動位置
+        this.loadData(this.currentSearchQuery);
     }
 
     formatPreview(value) {
@@ -928,14 +1264,13 @@ header h1 {
         if (show) {
             dataList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> ' + message + '</div>';
         }
-        // 如果 show 為 false，不做任何操作，讓 displayData 來處理內容
     }
 
     async refreshData() {
         console.log('開始重新載入資料...');
         
         try {
-            // 重新載入資料並更新統計資訊
+            await this.loadPrefixes();
             await this.loadData(this.currentSearchQuery);
             await this.loadStats();
             console.log('資料已重新載入');
@@ -945,33 +1280,16 @@ header h1 {
         }
     }
 
-    // 強制重新載入所有資料（忽略搜尋狀態）
-    async forceRefreshAllData() {
-        console.log('開始強制重新載入所有資料...');
-        
-        this.currentSearchQuery = '';
-        document.getElementById('search-input').value = '';
-        
-        try {
-            // 等待資料載入完成
-            await this.loadData('');
-            await this.loadStats();
-            console.log('已強制重新載入所有資料');
-        } catch (error) {
-            console.error('強制重新載入資料時發生錯誤:', error);
-            this.showNotification('重新載入失敗', 'error');
-        }
-    }
-
     async searchData() {
         const query = document.getElementById('search-input').value.trim();
         this.currentSearchQuery = query;
+        this.currentPage = 1;
+        this.scrollPosition = 0;
         
         console.log('開始搜尋:', query || '(顯示所有資料)');
         
         try {
             await this.loadData(query);
-            // 搜尋後也更新統計資訊
             await this.loadStats();
             console.log('搜尋完成');
         } catch (error) {
@@ -984,8 +1302,25 @@ header h1 {
         this.currentEditKey = null;
         document.getElementById('modal-title').textContent = '新增資料';
         document.getElementById('key-input').value = '';
-        document.getElementById('value-input').value = '';
         document.getElementById('key-input').disabled = false;
+        
+        // 初始化 Monaco Editor
+        if (!this.monacoEditor) {
+            this.monacoEditor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                value: '',
+                language: 'json',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on'
+            });
+        } else {
+            this.monacoEditor.setValue('');
+        }
+        
         document.getElementById('modal').style.display = 'block';
     }
 
@@ -1003,7 +1338,23 @@ header h1 {
                 const value = typeof result.data === 'object' ? 
                     JSON.stringify(result.data, null, 2) : 
                     String(result.data);
-                document.getElementById('value-input').value = value;
+                
+                // 初始化 Monaco Editor
+                if (!this.monacoEditor) {
+                    this.monacoEditor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                        value: value,
+                        language: 'json',
+                        theme: 'vs-dark',
+                        automaticLayout: true,
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: 'on',
+                        scrollBeyondLastLine: false,
+                        wordWrap: 'on'
+                    });
+                } else {
+                    this.monacoEditor.setValue(value);
+                }
             } else {
                 this.showNotification('載入資料失敗', 'error');
                 return;
@@ -1032,7 +1383,6 @@ header h1 {
             
             if (result.success) {
                 this.showNotification('資料刪除成功', 'success');
-                // 刪除完成後重新載入資料，保持當前搜尋狀態
                 await this.refreshData();
             } else {
                 this.showNotification('刪除失敗: ' + result.error, 'error');
@@ -1048,7 +1398,7 @@ header h1 {
         e.preventDefault();
         
         const key = document.getElementById('key-input').value.trim();
-        const valueText = document.getElementById('value-input').value.trim();
+        const valueText = this.monacoEditor ? this.monacoEditor.getValue().trim() : '';
         
         if (!key) {
             this.showNotification('鍵值不能為空', 'error');
@@ -1057,10 +1407,8 @@ header h1 {
 
         let value;
         try {
-            // 嘗試解析為 JSON
             value = JSON.parse(valueText);
         } catch {
-            // 如果不是有效的 JSON，就作為字串處理
             value = valueText;
         }
 
@@ -1082,8 +1430,7 @@ header h1 {
             if (result.success) {
                 this.showNotification(isEdit ? '資料更新成功' : '資料創建成功', 'success');
                 this.closeModal();
-                // 操作完成後立即強制重新載入所有資料
-                await this.forceRefreshAllData();
+                await this.refreshData();
             } else {
                 this.showNotification((isEdit ? '更新' : '創建') + '失敗: ' + result.error, 'error');
             }
@@ -1105,8 +1452,10 @@ header h1 {
             
             if (result.success) {
                 this.showNotification('資料庫清空成功', 'success');
-                // 清空資料庫後強制重新載入所有資料
-                await this.forceRefreshAllData();
+                this.currentPrefix = '';
+                this.currentPage = 1;
+                this.scrollPosition = 0;
+                await this.refreshData();
             } else {
                 this.showNotification('清空失敗: ' + result.error, 'error');
             }
@@ -1118,6 +1467,10 @@ header h1 {
     closeModal() {
         document.getElementById('modal').style.display = 'none';
         this.currentEditKey = null;
+        if (this.monacoEditor) {
+            this.monacoEditor.dispose();
+            this.monacoEditor = null;
+        }
     }
 
     closeConfirmModal() {
@@ -1153,8 +1506,21 @@ const lmdbManager = new LMDBManager();`;
 
 // 當直接執行此腳本時啟動管理器
 if (require.main === module) {
-    const manager = new LMDBCLIManager();
-    manager.start().catch(console.error);
+    (async () => {
+        try {
+            // 初始化資料庫服務
+            console.log('正在初始化資料庫...');
+            await databaseService.init();
+            console.log('資料庫初始化成功');
+            
+            // 啟動管理器
+            const manager = new LMDBCLIManager();
+            await manager.start();
+        } catch (error) {
+            console.error('啟動失敗:', error);
+            process.exit(1);
+        }
+    })();
     
     // 優雅關閉
     process.on('SIGINT', async () => {
