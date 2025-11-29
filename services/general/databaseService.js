@@ -139,7 +139,6 @@ class DatabaseService {
         }
     }
 
-    // TODO: 檢查是否需要此方法
     async getRange(prefix = '') {
         try {
             if (!this.db) {

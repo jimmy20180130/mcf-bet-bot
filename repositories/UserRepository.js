@@ -3,20 +3,6 @@ const Logger = require('../utils/logger');
 const { DatabaseError, UserError } = require('../utils/errors');
 // TODO: 清理不必要的垃圾
 
-// 說明是 AI 寫的
-/**
- * 用戶資料 Repository
- * 管理用戶基本資料，使用 UUID 作為主要識別碼
- * 
- * 資料格式:
- * - playerUUID: 玩家唯一識別碼
- * - playerID: 玩家遊戲內 ID  
- * - discordID: Discord ID (可為 null)
- * - createDate: 帳戶創建日期
- * - eWallet: 綠寶石錢包餘額
- * - cWallet: 村民錠錢包餘額
- * - additionalInfo: 額外資訊 (JSON 物件)
- */
 class UserRepository {
     constructor() {
         this.prefix = 'userData:';
@@ -80,11 +66,20 @@ class UserRepository {
         return user;
     }
 
-    /**
-     * 根據 UUID 取得玩家資料
-     * @param {string} playerUUID - 玩家 UUID
-     * @returns {Promise<Object|null>} 用戶資料，找不到時返回 null（不拋出錯誤）
-     */
+    // TODO: 優化查詢邏輯
+    async getUser({ identifier, by = 'uuid' }) {
+        switch (by) {
+            case 'uuid':
+                return this.getUserByUUID(identifier);
+            case 'playerID':
+                return this.getUserByPlayerID(identifier);
+            case 'discordID':
+                return this.getUserByDiscordID(identifier);
+            default:
+                throw new UserError('無效的查詢方式', 'INVALID_QUERY_METHOD', 'getUser');
+        }
+    }
+
     async getUserByUUID(playerUUID) {
         const user = await databaseService.get(`${this.prefix}${playerUUID}`);
         if (user) {
@@ -93,11 +88,6 @@ class UserRepository {
         return user;
     }
 
-    /**
-     * 根據玩家 ID 取得玩家資料
-     * @param {string} playerID - 玩家 ID
-     * @returns {Promise<Object|null>} 用戶資料，找不到時返回 null（不拋出錯誤）
-     */
     async getUserByPlayerID(playerID) {
         const allUsers = await databaseService.getRange(this.prefix);
         for (const user of Object.values(allUsers)) {
@@ -110,11 +100,6 @@ class UserRepository {
         return null;
     }
 
-    /**
-     * 根據 Discord ID 獲取用戶資料
-     * @param {string} discordID - Discord ID
-     * @returns {Promise<Object|null>} 用戶資料，找不到時返回 null（不拋出錯誤）
-     */
     async getUserByDiscordID(discordID) {
         const allUsers = await databaseService.getRange(this.prefix);
         for (const user of Object.values(allUsers)) {
@@ -127,13 +112,6 @@ class UserRepository {
         return null;
     }
 
-    /**
-     * 更新用戶資料
-     * @param {string} playerUUID - 玩家 UUID
-     * @param {Object} updateData - 要更新的資料
-     * @returns {Promise<Object>} 更新後的用戶資料
-     * @throws {DatabaseError} 當用戶不存在或更新失敗時
-     */
     async updateUser(playerUUID, updateData) {
         const existingUser = await this.getUserByUUID(playerUUID);
         if (!existingUser) {
@@ -159,14 +137,6 @@ class UserRepository {
         return updatedUser;
     }
 
-    /**
-     * 更新用戶錢包餘額
-     * @param {string} playerUUID - 玩家 UUID
-     * @param {string} walletType - 錢包類型 ('eWallet' 或 'cWallet')
-     * @param {number} amount - 金額變化 (正數為增加，負數為減少，零為歸零)
-     * @returns {Promise<Object>} 更新後的錢包餘額資訊
-     * @throws {DatabaseError} 當更新失敗時
-     */
     async updateWallet(playerUUID, walletType, amount) {
         const user = await this.getUserByUUID(playerUUID);
         if (!user) {
@@ -203,13 +173,6 @@ class UserRepository {
         };
     }
 
-    /**
-     * 設置用戶黑名單狀態
-     * @param {string} playerUUID - 玩家 UUID
-     * @param {boolean} isBlacklisted - 是否加入黑名單
-     * @param {string|null} reason - 黑名單原因
-     * @returns {Promise<boolean>} 是否設置成功
-     */
     async setBlacklistStatus(playerUUID, isBlacklisted, reason = null) {
         try {
             const updateData = {
@@ -231,10 +194,6 @@ class UserRepository {
         }
     }
 
-    /**
-     * 取得所有玩家
-     * @returns {Promise<Object[]>} 所有用戶資料
-     */
     async getAllUsers() {
         try {
             const usersData = await databaseService.getRange(this.prefix);
@@ -247,11 +206,6 @@ class UserRepository {
         }
     }
 
-    /**
-     * 刪除用戶
-     * @param {string} playerUUID - 玩家 UUID
-     * @returns {Promise<boolean>} 是否刪除成功
-     */
     async deleteUser(playerUUID) {
         try {
             const success = await databaseService.remove(`${this.prefix}${playerUUID}`);
@@ -263,20 +217,6 @@ class UserRepository {
             return success;
         } catch (error) {
             Logger.error(`[UserRepository.deleteUser] 刪除用戶失敗 (${playerUUID}):`, error);
-            return false;
-        }
-    }
-
-    /**
-     * 檢查用戶是否存在
-     * @param {string} playerUUID - 玩家 UUID
-     * @returns {Promise<boolean>} 用戶是否存在
-     */
-    async userExists(playerUUID) {
-        try {
-            return await databaseService.exists(`${this.prefix}${playerUUID}`);
-        } catch (error) {
-            Logger.error(`[UserRepository.userExists] 檢查玩家是否存在失敗 (${playerUUID}):`, error);
             return false;
         }
     }
@@ -339,32 +279,6 @@ class UserRepository {
             return user?.additionalInfo?.rank || null;
         } catch (error) {
             Logger.error(`[UserRepository.getUserRankID] 取得玩家身份組失敗 (${playerUUID}):`, error);
-            return null;
-        }
-    }
-    
-    // TODO: fix or delete
-    /**
-     * 獲取用戶統計資訊
-     * @returns {Promise<Object>} 用戶統計資訊
-     */
-    async getUserStats() {
-        try {
-            const users = await this.getAllUsers();
-            const usersWithRank = users.filter(u => u.additionalInfo?.rank);
-            const stats = {
-                totalUsers: users.length,
-                blacklistedUsers: users.filter(u => u.additionalInfo?.isBlacklisted).length,
-                usersWithDiscord: users.filter(u => u.discordID).length,
-                usersWithRank: usersWithRank.length,
-                usersWithoutRank: users.length - usersWithRank.length,
-                totalEWalletBalance: users.reduce((sum, u) => sum + (u.eWallet || 0), 0),
-                totalCWalletBalance: users.reduce((sum, u) => sum + (u.cWallet || 0), 0)
-            };
-            Logger.debug('[UserRepository.getUserStats] 獲取用戶統計資訊');
-            return stats;
-        } catch (error) {
-            Logger.error('[UserRepository.getUserStats] 獲取用戶統計失敗:', error);
             return null;
         }
     }
