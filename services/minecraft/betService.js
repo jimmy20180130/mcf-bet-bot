@@ -60,8 +60,9 @@ class BetService {
     }
 
     addTask(betTask) {
-        // betTask = { playerId, playerUUID, amount, user, userRank }
+        // betTask = { playerId, playerUUID, currency, amount, user, userRank }
         this.bets.push(betTask);
+        console.log(betTask)
     }
 
     getTasks() {
@@ -103,10 +104,12 @@ class BetService {
         // lose: don't return
         let result = 'return'
         let returnAmount = task.amount;
+        const currencyName = task.currency === 'emerald' ? '綠寶石' : '村民錠';
+        const currencyColor = task.currency === 'emerald' ? '&a' : '&6';
         try {
             // TODO: allow passing block and timeout
             result = await this._clickRedstoneDust(null, 7000);
-            Logger.info(`[BetService.processTask] ${task.playerId} 下注結果: ${result}`);
+            Logger.info(`[BetService.processTask] ${task.playerId} 下注結果: ${result} (${currencyName})`);
             // TODO: customize win message
 
             // get user rank prefix
@@ -122,9 +125,9 @@ class BetService {
                 });
 
                 // [11:11:11] &c[ADMIN] &f&lJimmy4Real &r&f贏得了 &6&l100,000,000,000 &f個&a綠寶石 &7(&f賠率: &e1.85+1&7)
-                chatService.addMessage(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l中獎 &6${addCommas(task.amount)} &7-> &6&l${addCommas(returnAmount)} &a綠寶石 &7(&e1.85${task.userRank ? `+${task.userRank.bonusOdds}` : ''}&7)`);
+                chatService.addMessage(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l中獎 &6${addCommas(task.amount)} &7-> &6&l${addCommas(returnAmount)} ${currencyColor}${currencyName} &7(&e1.85${task.userRank ? `+${task.userRank.bonusOdds}` : ''}&7)`);
 
-                await paymentService.epay(task.playerId, returnAmount);
+                await paymentService[task.currency === 'emerald' ? 'epay' : 'cpay'](task.playerId, returnAmount);
                 
             } else if (result === 'lose') {
                 returnAmount = 0;
@@ -148,7 +151,7 @@ class BetService {
                 details: {
                     betType: betType,
                     amount: task.amount,
-                    currency: 'emerald',
+                    currency: task.currency,
                     result: result
                 }
             });
@@ -158,9 +161,9 @@ class BetService {
             if (isTimeoutError) {
                 // 超時錯誤：只通知玩家，不退款
                 if (result == 'return') {
-                    chatService.addMessage(`/m ${task.playerId} &f轉帳超時，若您&c沒收到 &b${addCommas(task.amount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
+                    chatService.addMessage(`/m ${task.playerId} &f轉帳超時，若您&c沒收到 &b${addCommas(task.amount)} &f個${currencyColor}${currencyName}，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result == 'win') {
-                    chatService.addMessage(`/m ${task.playerId} &f轉帳超時，若您&c沒收到&f您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
+                    chatService.addMessage(`/m ${task.playerId} &f轉帳超時，若您&c沒收到&f您贏得的 &b${addCommas(returnAmount)} &f個${currencyColor}${currencyName}，請&c至 Discord 伺服器回報錯誤 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result == 'lose') {
                     chatService.addMessage(`/m ${task.playerId} &f轉帳超時，您未中獎 &7(錯誤ID: &c${errorID}&7)`);
                 }
@@ -170,23 +173,23 @@ class BetService {
                 const errorReason = error.message || '未知錯誤';
 
                 if (result === 'return') {
-                    chatService.addMessage(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您下注的 &b${addCommas(task.amount)} &f個&a綠寶石 &7(錯誤ID: &c${errorID}&7)`);
-                    await paymentService.epay(task.playerId, returnAmount).catch(async (payError) => {
+                    chatService.addMessage(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您下注的 &b${addCommas(task.amount)} &f個${currencyColor}${currencyName} &7(錯誤ID: &c${errorID}&7)`);
+                    await paymentService[task.currency === 'emerald' ? 'epay' : 'cpay'](task.playerId, returnAmount).catch(async (payError) => {
                         await errorHandler.handle(payError, task.playerId, task.playerUUID, {
                             bot: client.mcBot,
                             operation: 'bet_refund',
-                            details: { amount: returnAmount, currency: 'emerald', reason: 'bet_failed' }
+                            details: { amount: returnAmount, currency: task.currency, reason: 'bet_failed' }
                         });
                     });
                 } else if (result === 'lose') {
                     chatService.addMessage(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，您未中獎 &7(錯誤ID: &c${errorID}&7)`);
                 } else if (result === 'win') {
-                    chatService.addMessage(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您贏得的 &b${addCommas(returnAmount)} &f個&a綠寶石 &7(錯誤ID: &c${errorID}&7)`);
-                    await paymentService.epay(task.playerId, returnAmount).catch(async (payError) => {
+                    chatService.addMessage(`/m ${task.playerId} &f下注失敗 (&c${errorReason})&f，已退回給您贏得的 &b${addCommas(returnAmount)} &f個${currencyColor}${currencyName} &7(錯誤ID: &c${errorID}&7)`);
+                    await paymentService[task.currency === 'emerald' ? 'epay' : 'cpay'](task.playerId, returnAmount).catch(async (payError) => {
                         await errorHandler.handle(payError, task.playerId, task.playerUUID, {
                             bot: client.mcBot,
                             operation: 'bet_refund',
-                            details: { amount: returnAmount, currency: 'emerald', reason: 'bet_win_failed' }
+                            details: { amount: returnAmount, currency: task.currency, reason: 'bet_win_failed' }
                         });
                     });
                 }
@@ -198,6 +201,7 @@ class BetService {
         await betRepository.createBet({
             playerUUID: task.playerUUID,
             betType: betType,
+            currency: task.currency,
             amount: task.amount,
             odds: 1.85,
             result: result,
@@ -420,6 +424,7 @@ async function processBetRequest({ bot, playerId, amount, currentAmount, currenc
     betService.addTask({
         playerId,
         playerUUID,
+        currency,
         amount,
         user,
         userRank: userRank?.rank || null
