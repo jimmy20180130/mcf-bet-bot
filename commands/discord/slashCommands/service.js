@@ -1,14 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const Logger = require('../../../utils/logger');
 const serviceManager = require('../../../services/serviceManager');
-
-// 只允許 bot owner 使用
-const OWNER_IDS = ['YOUR_OWNER_ID']; // TODO: 從設定檔讀取
-
-function isOwner(userId) {
-    // TODO: 從 config.toml 讀取 owner id
-    return userId === '240844873577078784'; // Jimmy4Real 的 Discord ID
-}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -86,18 +78,18 @@ module.exports = {
 
     async execute(interaction) {
         // 權限檢查
-        // if (!isOwner(interaction.user.id)) {
-        //     await interaction.reply({
-        //         content: '❌ 只有機器人管理員可以使用此命令',
-        //         ephemeral: true
-        //     });
-        //     return;
-        // }
+        if (!interaction.member.permissions.has('Administrator') && interaction.user.id !== '1256550027040657409') {
+            await interaction.reply({
+                content: '❌ 執行失敗: 無權限使用此指令',
+                ephemeral: true
+            });
+            return;
+        }
 
         const subcommand = interaction.options.getSubcommand();
         const serviceName = interaction.options.getString('service');
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         try {
             switch (subcommand) {

@@ -114,9 +114,9 @@ module.exports = {
 
     async execute(interaction) {
         // 權限檢查
-        if (!isOwner(interaction.user.id)) {
+        if (!interaction.member.permissions.has('Administrator') && interaction.user.id !== '1256550027040657409') {
             await interaction.reply({
-                content: '❌ 只有機器人管理員可以使用此命令',
+                content: '❌ 執行失敗: 無權限使用此指令',
                 ephemeral: true
             });
             return;

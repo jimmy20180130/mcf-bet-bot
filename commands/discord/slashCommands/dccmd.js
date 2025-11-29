@@ -82,41 +82,41 @@ module.exports = {
                 )
         )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    
+
     async autocomplete(interaction) {
         const focusedValue = interaction.options.getFocused();
-        
+
         // 獲取所有可用的指令名稱
         const commandNames = ['all', ...client.dcCommands.keys()];
-        
+
         // 過濾匹配的指令
-        const filtered = commandNames.filter(name => 
+        const filtered = commandNames.filter(name =>
             name.toLowerCase().includes(focusedValue.toLowerCase())
         ).slice(0, 25); // Discord 限制最多 25 個選項
-        
+
         await interaction.respond(
             filtered.map(name => ({ name: name, value: name }))
         );
     },
-    
+
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
-        
+
         if (subcommand === 'reload') {
             const commandName = interaction.options.getString('command') || 'all';
-            
+
             await interaction.deferReply({ flags: 64 }); // Ephemeral
-            
+
             try {
-                // 檢查權限 - 只有管理員或特定用戶可以使用
-                if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-                    await interaction.editReply({
-                        content: '❌ 您沒有權限使用此指令',
+                // 檢查權限
+                if (!interaction.member.permissions.has('Administrator') && interaction.user.id !== '1256550027040657409') {
+                    await interaction.reply({
+                        content: '❌ 執行失敗: 無權限使用此指令',
                         ephemeral: true
                     });
                     return;
                 }
-                
+
                 // 初始化 pendingInteractions Map（如果不存在）
                 if (!client.pendingInteractions) {
                     client.pendingInteractions = new Map();
@@ -125,17 +125,17 @@ module.exports = {
                 // 儲存此次重載請求
                 client.pendingReloads.set(interaction.id, commandName);
                 client.pendingInteractions.set(interaction.id, interaction);
-                
+
                 await interaction.editReply({
                     content: `🔄 正在重新載入 ${commandName === 'all' ? '所有指令' : `指令 ${commandName}`}...`,
                     ephemeral: true
                 });
-                
+
                 // 觸發重載事件（與 commands/discord/index.js 對接）
                 client.emit('dcUnregisterCommand', commandName);
-                
+
                 Logger.info(`[Discord] ${interaction.user.tag} 請求重新載入指令: ${commandName}`);
-                
+
             } catch (error) {
                 Logger.error('[Discord] 執行 reload 指令時發生錯誤:', error);
                 await interaction.editReply({
@@ -145,7 +145,7 @@ module.exports = {
             }
         }
     },
-    
+
     init,
     cleanup
 };
