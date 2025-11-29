@@ -6,5 +6,5 @@ module.exports.addCommas = function(number) {
 
 module.exports.removeCommas = function(numberStr) {
     if(typeof numberStr !== 'string') return numberStr;
-    return numberStr.replace(/,/g, '');
+    return Number(numberStr.replace(/,/g, ''));
 }
