@@ -44,7 +44,13 @@ async function initServices() {
 
 async function start() {
     Logger.info('[Core] 正在啟動 Discord bot...');
-    await dcBot.init();
+    try {
+        await dcBot.init();
+    } catch (e) {
+        Logger.error(`[Core] 啟動 Discord bot 失敗: ${e.message}`, e);
+        process.exit(1);
+    }
+    
 
     Logger.info('[Core] 正在啟動 Minecraft bot...');
     bot.start();
