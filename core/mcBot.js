@@ -25,11 +25,7 @@ class Bot {
         // 設置 spawn 超時計時器
         this.spawnTimeout = setTimeout(() => {
             Logger.warn(`Bot 啟動後 ${this.spawnTimeoutDuration / 1000} 秒內未收到 spawn 事件，判斷為連線失敗`);
-            if (this.bot) {
-                this.bot.end('spawn 超時');
-            } else {
-                this.onEnd('spawn 超時')
-            }
+            this.onEnd('spawn 超時')
         }, this.spawnTimeoutDuration);
 
         this.bot.once('spawn', this.onSpawn.bind(this));
@@ -67,6 +63,8 @@ class Bot {
         }
 
         this.reconnectAttempts = 0; // 重置重連次數
+
+        this.bot.respawn();
 
         client.emit('mcSpawned', this.bot);
 
