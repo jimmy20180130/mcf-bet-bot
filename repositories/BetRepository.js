@@ -21,10 +21,6 @@ class BetRepository {
         this.prefix = 'betRecord:';
     }
 
-    /**
-     * 生成下注 ID
-     * @returns {string} 唯一的下注 ID
-     */
     generateBetID() {
         return `bet_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     }
@@ -34,6 +30,7 @@ class BetRepository {
      * @param {Object} betData - 下注資料
      * @param {string} betData.playerUUID - 玩家 UUID
      * @param {string} betData.betType - 下注類型
+     * @param {string} betData.currency - 貨幣類型 ('emerald' 或 'coin')
      * @param {number} betData.amount - 下注金額
      * @param {number} betData.odds - 賠率
      * @param {string} betData.result - 下注結果 ('win', 'lose')
@@ -43,10 +40,10 @@ class BetRepository {
      */
     async createBet(betData) {
         try {
-            const { playerUUID, betType, amount, odds, result, betID = null, additionalInfo = {} } = betData;
-            if (!playerUUID || !betType || amount === undefined || odds === undefined || !result) {
+            const { playerUUID, betType, currency, amount, odds, result, betID = null, additionalInfo = {} } = betData;
+            if (!playerUUID || !betType || !currency || amount === undefined || odds === undefined || !result) {
                 Logger.debug(`[BetRepository.createBet] 缺少必要欄位: ${JSON.stringify(betData)}`);
-                throw new Error('playerUUID、betType、amount、result 和 odds 為必填欄位');
+                throw new Error('playerUUID、betType、currency、amount、result 和 odds 為必填欄位');
             }
 
             if (!['win', 'lose'].includes(result)) {
@@ -73,6 +70,7 @@ class BetRepository {
                 betID: generatedBetID,
                 playerUUID,
                 betType,
+                currency,
                 amount,
                 odds,
                 result,
@@ -92,11 +90,6 @@ class BetRepository {
         }
     }
 
-    /**
-     * 根據下注 ID 獲取下注記錄
-     * @param {string} betID - 下注 ID
-     * @returns {Promise<Object|null>} 下注記錄
-     */
     async getBetByID(betID) {
         try {
             const bet = await databaseService.get(`${this.prefix}${betID}`);
@@ -110,41 +103,115 @@ class BetRepository {
         }
     }
 
-    /**
-     * 獲取用戶的下注記錄
-     * @param {string} playerUUID - 玩家 UUID
-     * @param {Object} options - 查詢選項
-     * @param {number} options.limit - 限制數量 (可選)
-     * @param {string} options.betType - 下注類型篩選 (可選)
-     * @param {string} options.result - 結果篩選 (可選)
-     * @returns {Promise<Object[]>} 下注記錄列表
-     */
     async getUserBets(playerUUID, options = {}) {
         try {
-            const { limit = null, betType = null, result = null } = options;
+            const { timeRange, amount, coinTimeRange, coinAmount, advanced } = options;
+
+            // timeRange: { laterThan, earlierThan } (綠寶石)
+            // amount: { minAmount, maxAmount } (綠寶石)
+            // coinTimeRange: { laterThan, earlierThan } (村民錠)
+            // coinAmount: { minAmount, maxAmount } (村民錠)
+            // advanced: boolean
+
+            
             
             const allBets = await databaseService.getRange(this.prefix);
             let userBets = Object.values(allBets)
                 .filter(bet => bet.playerUUID === playerUUID);
 
-            // 應用篩選條件
-            if (betType) {
-                userBets = userBets.filter(bet => bet.betType === betType);
-            }
-            if (result) {
-                userBets = userBets.filter(bet => bet.result === result);
+            // 分離綠寶石和村民錠的下注記錄
+            let emeraldBets = userBets.filter(bet => bet.currency === 'emerald');
+            let coinBets = userBets.filter(bet => bet.currency === 'coin');
+
+            // 應用綠寶石時間範圍篩選
+            if (timeRange) {
+                const { laterThan, earlierThan } = timeRange;
+                emeraldBets = emeraldBets.filter(bet => {
+                    const betTimestamp = Math.floor(new Date(bet.createDate).getTime() / 1000);
+                    if (laterThan !== null && betTimestamp < laterThan) {
+                        return false;
+                    }
+                    if (earlierThan !== null && betTimestamp > earlierThan) {
+                        return false;
+                    }
+                    return true;
+                });
             }
 
-            // 按創建日期排序 (最新的在前)
-            userBets.sort((a, b) => new Date(b.createDate) - new Date(a.createDate));
-
-            // 應用數量限制
-            if (limit) {
-                userBets = userBets.slice(0, limit);
+            // 應用綠寶石金額篩選
+            if (amount) {
+                const { minAmount, maxAmount } = amount;
+                emeraldBets = emeraldBets.filter(bet => {
+                    const betAmount = bet.amount;
+                    if (minAmount !== null && minAmount !== undefined && betAmount < minAmount) {
+                        return false;
+                    }
+                    if (maxAmount !== null && maxAmount !== undefined && betAmount > maxAmount) {
+                        return false;
+                    }
+                    return true;
+                });
             }
+
+            // 應用村民錠時間範圍篩選
+            if (coinTimeRange) {
+                const { laterThan, earlierThan } = coinTimeRange;
+                coinBets = coinBets.filter(bet => {
+                    const betTimestamp = Math.floor(new Date(bet.createDate).getTime() / 1000);
+                    if (laterThan !== null && betTimestamp < laterThan) {
+                        return false;
+                    }
+                    if (earlierThan !== null && betTimestamp > earlierThan) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            // 應用村民錠金額篩選
+            if (coinAmount) {
+                const { minAmount, maxAmount } = coinAmount;
+                coinBets = coinBets.filter(bet => {
+                    const betAmount = bet.amount;
+                    if (minAmount !== null && minAmount !== undefined && betAmount < minAmount) {
+                        return false;
+                    }
+                    if (maxAmount !== null && maxAmount !== undefined && betAmount > maxAmount) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            console.log(emeraldBets);
+
+            let userBetStatus = {
+                totalEmeraldBets: emeraldBets.length,
+                totalEmeraldBetAmount: emeraldBets.reduce((sum, bet) => sum + Number(bet.amount), 0),
+                winEmeraldBetAmount: emeraldBets.filter(bet => bet.result === 'win').reduce((sum, bet) => sum + Number(bet.additionalInfo.returnAmount), 0),
+                casinoEmeraldProfit: emeraldBets.reduce((sum, bet) => {
+                    if (bet.result === 'win') {
+                        return sum - ((Number(bet.additionalInfo.returnAmount)) - Number(bet.amount));
+                    } else if (bet.result === 'lose') {
+                        return sum + Number(bet.amount);
+                    }
+                    return sum;
+                }, 0),
+                totalCoinBets: coinBets.length,
+                totalCoinBetAmount: coinBets.reduce((sum, bet) => sum + Number(bet.amount), 0),
+                winCoinBetAmount: coinBets.filter(bet => bet.result === 'win').reduce((sum, bet) => sum + Number(bet.additionalInfo.returnAmount), 0),
+                casinoCoinProfit: coinBets.reduce((sum, bet) => {
+                    if (bet.result === 'win') {
+                        return sum - (Number(bet.additionalInfo.returnAmount) - Number(bet.amount));
+                    } else if (bet.result === 'lose') {
+                        return sum + Number(bet.amount);
+                    }
+                    return sum;
+                }, 0),
+            };
 
             Logger.debug(`[BetRepository.getUserBets] 獲取用戶 ${playerUUID} 的 ${userBets.length} 筆下注記錄`);
-            return userBets;
+            return userBetStatus;
         } catch (error) {
             Logger.error(`[BetRepository.getUserBets] 獲取用戶下注記錄失敗 (${playerUUID}):`, error);
             return [];
