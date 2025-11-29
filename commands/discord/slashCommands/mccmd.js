@@ -1,30 +1,48 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const Logger = require('../../../utils/logger');
 const { client } = require('../../../core/client');
 
-// 只允許 bot owner 使用
-function isOwner(userId) {
-    // TODO: 從 config.toml 讀取 owner id
-    return userId === '240844873577078784'; // Jimmy4Real 的 Discord ID
-}
-
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('command')
-        .setDescription('指令管理命令')
+        .setName('mccmd')
+        .setNameLocalizations({
+            'zh-TW': 'mc指令管理'
+        })
+        .setDescription('Manage Minecraft commands')
+        .setDescriptionLocalizations({
+            'zh-TW': '管理 Minecraft 指令'
+        })
         .addSubcommand(subcommand =>
             subcommand
                 .setName('list')
-                .setDescription('列出所有 Minecraft 指令')
+                .setNameLocalizations({
+                    'zh-TW': '列表'
+                })
+                .setDescription('List all registered Minecraft commands')
+                .setDescriptionLocalizations({
+                    'zh-TW': '列出所有已註冊的 Minecraft 指令'
+                })
         )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('load')
-                .setDescription('加載 Minecraft 指令')
+                .setNameLocalizations({
+                    'zh-TW': '載入'
+                })
+                .setDescription('Load a Minecraft command')
+                .setDescriptionLocalizations({
+                    'zh-TW': '載入一個 Minecraft 指令'
+                })
                 .addStringOption(option =>
                     option
                         .setName('command')
-                        .setDescription('指令名稱')
+                        .setNameLocalizations({
+                            'zh-TW': '指令'
+                        })
+                        .setDescription('Command name')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '指令名稱'
+                        })
                         .setRequired(true)
                         .setAutocomplete(true)
                 )
@@ -32,11 +50,23 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('unload')
-                .setDescription('卸載 Minecraft 指令')
+                .setNameLocalizations({
+                    'zh-TW': '停用'
+                })
+                .setDescription('Unload a Minecraft command')
+                .setDescriptionLocalizations({
+                    'zh-TW': '停用一個 Minecraft 指令'
+                })
                 .addStringOption(option =>
                     option
                         .setName('command')
-                        .setDescription('指令名稱')
+                        .setNameLocalizations({
+                            'zh-TW': '指令'
+                        })
+                        .setDescription('Command name')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '指令名稱'
+                        })
                         .setRequired(true)
                         .setAutocomplete(true)
                 )
@@ -44,11 +74,23 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('reload')
-                .setDescription('重新載入 Minecraft 指令')
+                .setNameLocalizations({
+                    'zh-TW': '重新載入'
+                })
+                .setDescription('Reload a Minecraft command')
+                .setDescriptionLocalizations({
+                    'zh-TW': '重新載入一個 Minecraft 指令'
+                })
                 .addStringOption(option =>
                     option
                         .setName('command')
-                        .setDescription('指令名稱（留空則重新載入所有指令）')
+                        .setNameLocalizations({
+                            'zh-TW': '指令'
+                        })
+                        .setDescription('Command name (leave blank to reload all commands)')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '指令名稱（留空則重新載入所有指令）'
+                        })
                         .setRequired(false)
                         .setAutocomplete(true)
                 )
