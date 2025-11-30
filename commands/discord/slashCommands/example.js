@@ -4,7 +4,13 @@ const Logger = require('../../../utils/logger');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('example')
-        .setDescription('指令說明'),
+        .setNameLocalizations({
+            'zh-TW': '範例指令'
+        })
+        .setDescription('Example command')
+        .setDescriptionLocalizations({
+            'zh-TW': '範例指令說明'
+        }),
     
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: true });

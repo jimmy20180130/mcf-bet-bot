@@ -51,7 +51,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('dccmd')
         .setNameLocalizations({
-            'zh-TW': 'dc指令管理'
+            'zh-TW': 'discord指令管理'
         })
         .setDescription('Manage Discord commands')
         .setDescriptionLocalizations({

@@ -6,7 +6,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('mccmd')
         .setNameLocalizations({
-            'zh-TW': 'mc指令管理'
+            'zh-TW': 'minecraft指令管理'
         })
         .setDescription('Manage Minecraft commands')
         .setDescriptionLocalizations({
@@ -153,7 +153,6 @@ module.exports = {
 };
 
 async function handleList(interaction) {
-    const { mcClient } = require('../../../core/client');
     const commandNames = Object.keys(client.mcCommands).sort();
     
     if (commandNames.length === 0) {

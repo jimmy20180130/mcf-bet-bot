@@ -5,10 +5,12 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('ping')
         .setNameLocalizations({
-            'zh-TW': '延遲',
-            'en-US': 'ping'
+            'zh-TW': '延遲'
         })
-        .setDescription('顯示機器人的延遲資訊'),
+        .setDescription('Show the bot latency information')
+        .setDescriptionLocalizations({
+            'zh-TW': '顯示機器人延遲資訊'
+        }),
     
     async execute(interaction) {
         try {

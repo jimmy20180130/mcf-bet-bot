@@ -5,20 +5,44 @@ const serviceManager = require('../../../services/serviceManager');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('service')
-        .setDescription('服務管理命令')
+        .setNameLocalizations({
+            'zh-TW': '服務'
+        })
+        .setDescription('Manage bot services')
+        .setDescriptionLocalizations({
+            'zh-TW': '管理機器人服務'
+        })
         .addSubcommand(subcommand =>
             subcommand
                 .setName('list')
-                .setDescription('列出所有服務')
+                .setNameLocalizations({
+                    'zh-TW': '列表'
+                })
+                .setDescription('List all services')
+                .setDescriptionLocalizations({
+                    'zh-TW': '列出所有服務'
+                })
         )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('status')
-                .setDescription('查看服務狀態')
+                .setNameLocalizations({
+                    'zh-TW': '狀態'
+                })
+                .setDescription('Check service status')
+                .setDescriptionLocalizations({
+                    'zh-TW': '查看服務狀態'
+                })
                 .addStringOption(option =>
                     option
                         .setName('service')
-                        .setDescription('服務名稱')
+                        .setNameLocalizations({
+                            'zh-TW': '服務'
+                        })
+                        .setDescription('Service name')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '服務名稱'
+                        })
                         .setRequired(true)
                         .setAutocomplete(true)
                 )
@@ -26,11 +50,23 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('load')
-                .setDescription('加載服務')
+                .setNameLocalizations({
+                    'zh-TW': '載入'
+                })
+                .setDescription('Load a service')
+                .setDescriptionLocalizations({
+                    'zh-TW': '載入一個服務'
+                })
                 .addStringOption(option =>
                     option
                         .setName('service')
-                        .setDescription('服務名稱')
+                        .setNameLocalizations({
+                            'zh-TW': '服務'
+                        })
+                        .setDescription('Service name')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '服務名稱'
+                        })
                         .setRequired(true)
                         .setAutocomplete(true)
                 )
@@ -38,11 +74,23 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('unload')
-                .setDescription('卸載服務')
+                .setNameLocalizations({
+                    'zh-TW': '停用'
+                })
+                .setDescription('Unload a service')
+                .setDescriptionLocalizations({
+                    'zh-TW': '停用服務'
+                })
                 .addStringOption(option =>
                     option
                         .setName('service')
-                        .setDescription('服務名稱')
+                        .setNameLocalizations({
+                            'zh-TW': '服務'
+                        })
+                        .setDescription('Service name')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '服務名稱'
+                        })
                         .setRequired(true)
                         .setAutocomplete(true)
                 )
@@ -50,11 +98,23 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('reload')
-                .setDescription('重新載入服務')
+                .setNameLocalizations({
+                    'zh-TW': '重新載入'
+                })
+                .setDescription('Reload a service or all services')
+                .setDescriptionLocalizations({
+                    'zh-TW': '重新載入一個服務或所有服務'
+                })
                 .addStringOption(option =>
                     option
                         .setName('service')
-                        .setDescription('服務名稱（留空則重新載入所有服務）')
+                        .setNameLocalizations({
+                            'zh-TW': '服務'
+                        })
+                        .setDescription('Service name (leave empty to reload all services)')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '服務名稱（留空則重新載入所有服務）'
+                        })
                         .setRequired(false)
                         .setAutocomplete(true)
                 )
@@ -159,7 +219,7 @@ async function handleStatus(interaction, serviceName) {
         .setColor(status.loaded ? '#00ff00' : '#ff6600')
         .setTitle(`📊 服務狀態: ${serviceName}`)
         .addFields(
-            { name: '狀態', value: status.loaded ? '✅ 已加載' : '❌ 未加載', inline: true },
+            { name: '狀態', value: status.loaded ? '✅ 已載入' : '❌ 未載入', inline: true },
             { name: '版本', value: status.version, inline: true }
         )
         .setTimestamp();
@@ -173,21 +233,21 @@ async function handleLoad(interaction, serviceName) {
         
         const embed = new EmbedBuilder()
             .setColor('#00ff00')
-            .setTitle('✅ 服務已加載')
-            .setDescription(`服務 ${serviceName} 已成功加載`)
+            .setTitle('✅ 服務已載入')
+            .setDescription(`服務 ${serviceName} 已成功載入`)
             .setTimestamp();
 
         await interaction.editReply({ embeds: [embed] });
-        Logger.info(`[Discord] ${interaction.user.tag} 加載服務: ${serviceName}`);
+        Logger.info(`[Discord] ${interaction.user.tag} 載入服務: ${serviceName}`);
     } catch (error) {
         const embed = new EmbedBuilder()
             .setColor('#ff0000')
-            .setTitle('❌ 加載失敗')
-            .setDescription(`服務 ${serviceName} 加載失敗: ${error.message}`)
+            .setTitle('❌ 載入失敗')
+            .setDescription(`服務 ${serviceName} 載入失敗: ${error.message}`)
             .setTimestamp();
 
         await interaction.editReply({ embeds: [embed] });
-        Logger.error(`[Discord] 加載服務 ${serviceName} 失敗:`, error);
+        Logger.error(`[Discord] 載入服務 ${serviceName} 失敗:`, error);
     }
 }
 
@@ -197,21 +257,21 @@ async function handleUnload(interaction, serviceName) {
         
         const embed = new EmbedBuilder()
             .setColor('#ff9900')
-            .setTitle('✅ 服務已卸載')
-            .setDescription(`服務 ${serviceName} 已成功卸載`)
+            .setTitle('✅ 服務已停用')
+            .setDescription(`服務 ${serviceName} 已成功停用`)
             .setTimestamp();
 
         await interaction.editReply({ embeds: [embed] });
-        Logger.info(`[Discord] ${interaction.user.tag} 卸載服務: ${serviceName}`);
+        Logger.info(`[Discord] ${interaction.user.tag} 停用服務: ${serviceName}`);
     } catch (error) {
         const embed = new EmbedBuilder()
             .setColor('#ff0000')
-            .setTitle('❌ 卸載失敗')
-            .setDescription(`服務 ${serviceName} 卸載失敗: ${error.message}`)
+            .setTitle('❌ 停用失敗')
+            .setDescription(`服務 ${serviceName} 停用失敗: ${error.message}`)
             .setTimestamp();
 
         await interaction.editReply({ embeds: [embed] });
-        Logger.error(`[Discord] 卸載服務 ${serviceName} 失敗:`, error);
+        Logger.error(`[Discord] 停用服務 ${serviceName} 失敗:`, error);
     }
 }
 
