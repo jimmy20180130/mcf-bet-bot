@@ -51,6 +51,10 @@ class PaymentError extends AppError {
     static botNotReady() {
         return new PaymentError('Bot 尚未啟動完畢', 'BOT_NOT_READY');
     }
+
+    static cannotSendMessage() {
+        return new PaymentError('無法發送訊息給玩家', 'CANNOT_SEND_MESSAGE');
+    }
 }
 
 /**
@@ -106,6 +110,10 @@ class DatabaseError extends AppError {
 
     static updateFailed(resource, identifier) {
         return new DatabaseError(`更新 ${resource} 失敗: ${identifier}`, 'UPDATE_FAILED');
+    }
+
+    static deleteFailed(resource, identifier) {
+        return new DatabaseError(`刪除 ${resource} 失敗: ${identifier}`, 'DELETE_FAILED');
     }
 }
 
