@@ -112,6 +112,20 @@ class RankRepository {
     }
 
     /**
+     * 獲取所有等級資料
+     * @returns {Promise<Array<Object>>} 所有等級資料
+     */
+    async getAllRanks() {
+        try {
+            const allRanks = await databaseService.getRange(this.prefix);
+            return Object.values(allRanks);
+        } catch (error) {
+            Logger.error(`[RankRepository.getAllRanks] 獲取所有等級失敗:`, error);
+            return [];
+        }
+    }
+
+    /**
      * 根據 Discord ID 獲取等級資料
      * @param {string} discordID - Discord 身分組 ID
      * @returns {Promise<Object|null>} 等級資料

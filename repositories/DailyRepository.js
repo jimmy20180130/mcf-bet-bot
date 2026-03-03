@@ -1,14 +1,7 @@
 const databaseService = require('../services/general/databaseService');
 const Logger = require('../utils/logger');
 // TODO: 清理不必要的垃圾
-/**
- * 每日簽到記錄 Repository
- * 管理用戶每日簽到資料
- * 
- * 資料格式:
- * - playerUUID: 玩家唯一識別碼
- * - claimDate: 簽到日期 (YYYY-MM-DD 格式)
- */
+
 class DailyRepository {
     constructor() {
         this.prefix = 'daily:';
@@ -17,7 +10,7 @@ class DailyRepository {
     /**
      * 記錄用戶簽到
      * @param {string} playerUUID - 玩家 UUID
-     * @param {string} date - 簽到日期 (可選，預設為今天，格式: YYYY-MM-DD)
+     * @param {string} date - 簽到日期 (預設為今天，格式: YYYY-MM-DD)
      * @returns {Promise<boolean>} 是否簽到成功
      */
     async claimDaily(playerUUID, date = null) {

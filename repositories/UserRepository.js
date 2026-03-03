@@ -258,7 +258,7 @@ class UserRepository {
         try {
             const allUsers = await this.getAllUsers();
             const usersWithRank = allUsers.filter(user => 
-                user.additionalInfo?.rank === rankID
+                user.additionalInfo?.ranks?.includes(rankID)
             );
             Logger.debug(`[UserRepository.getUsersByRank] 有身份組 ${rankID} 的玩家共有 ${usersWithRank.length} 位`);
             return usersWithRank;
@@ -269,17 +269,17 @@ class UserRepository {
     }
 
     /**
-     * 取得使用者的身份組
+     * 取得使用者的身份組列表
      * @param {string} playerUUID - 玩家 UUID
-     * @returns {Promise<string|null>} 玩家的身份組
+     * @returns {Promise<string[]>} 玩家的身份組 ID 列表
      */
-    async getUserRankID(playerUUID) {
+    async getUserRankIDs(playerUUID) {
         try {
             const user = await this.getUserByUUID(playerUUID);
-            return user?.additionalInfo?.rank || null;
+            return user?.additionalInfo?.ranks || [];
         } catch (error) {
-            Logger.error(`[UserRepository.getUserRankID] 取得玩家身份組失敗 (${playerUUID}):`, error);
-            return null;
+            Logger.error(`[UserRepository.getUserRankIDs] 取得玩家身份組失敗 (${playerUUID}):`, error);
+            return [];
         }
     }
 }
