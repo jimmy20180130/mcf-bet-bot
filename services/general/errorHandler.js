@@ -1,5 +1,7 @@
 const Logger = require('../../utils/logger');
 const { errorRepository } = require('../../repositories');
+const discordService = require('../discord/discordService');
+const { PaymentError, BetError, UserError, DatabaseError, ValidationError } = require('../../utils/errors');
 
 class ErrorHandler {
     async init() {
@@ -16,6 +18,8 @@ class ErrorHandler {
         
         try {
             Logger.error(`[ErrorHandler] ${playerId} - ${operation}:`, error);
+
+            discordService.sendErrorLog(error, `Operation: ${operation}, Player: ${playerId}`);
 
             const errorID = await this._saveError(error, playerUUID, operation, details);
             const userMessage = this._buildUserMessage(error, errorID);
@@ -74,13 +78,11 @@ class ErrorHandler {
     }
     
     _getErrorType(error) {
-        if (error.type) return error.type;
-        if (error.code) {
-            if (error.code.includes('PAYMENT')) return 'PAYMENT_ERROR';
-            if (error.code.includes('BET')) return 'BET_ERROR';
-            if (error.code.includes('USER')) return 'USER_ERROR';
-            if (error.code.includes('DATABASE')) return 'DATABASE_ERROR';
-        }
+        if (error instanceof PaymentError) return 'PAYMENT_ERROR';
+        if (error instanceof BetError) return 'BET_ERROR';
+        if (error instanceof UserError) return 'USER_ERROR';
+        if (error instanceof DatabaseError) return 'DATABASE_ERROR';
+        if (error instanceof ValidationError) return 'VALIDATION_ERROR';
         return 'GENERAL_ERROR';
     }
     

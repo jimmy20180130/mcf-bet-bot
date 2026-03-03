@@ -1,0 +1,7 @@
+finished:
+userinfoservice
+linkservice
+
+todo:
+databaseservice
+errorhandler

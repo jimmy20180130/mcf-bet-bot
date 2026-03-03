@@ -161,7 +161,6 @@ class PaymentService {
                 if (this.activePayments.has(payment.id)) {
                     // 若逾時且非在處理中的 payment，就直接 reject
                     const err = PaymentError.timeout(payment.type, payment.player, payment.amount);
-                    err.code = 'TIMEOUT';
                     reject(err);
                 }
             }, timeoutMs);

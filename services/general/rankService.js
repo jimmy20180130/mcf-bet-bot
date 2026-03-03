@@ -1,6 +1,7 @@
 const { repositories } = require('../../repositories');
 const Logger = require('../../utils/logger');
 const { DatabaseError, ValidationError } = require('../../utils/errors');
+const { client } = require('../../core/client');
 // TODO: 清理不必要的垃圾
 
 class RankService {
@@ -110,7 +111,7 @@ class RankService {
         const updatedUser = await this.userRepository.updateUser(playerUUID, {
             additionalInfo: {
                 ...user.additionalInfo,
-                rank: rankID,
+                ranks: [rankID],
                 rankSetTime: Math.floor(Date.now() / 1000)
             }
         });
@@ -137,13 +138,90 @@ class RankService {
         const updatedUser = await this.userRepository.updateUser(playerUUID, {
             additionalInfo: {
                 ...user.additionalInfo,
-                rank: null,
+                ranks: [],
                 rankRemovedTime: Math.floor(Date.now() / 1000)
             }
         });
 
         Logger.info(`[RankService.removeUserRank] 成功移除用戶 ${playerUUID} 的等級`);
         return updatedUser;
+    }
+
+    /**
+     * 同步用戶等級 (Discord -> Bot)
+     * @param {string} playerUUID - 玩家 UUID
+     */
+    async syncUserRank(playerUUID) {
+        try {
+            const user = await this.userRepository.getUserByUUID(playerUUID);
+            if (!user || !user.discordID) return;
+
+            if (!client.dcBot || !client.dcBot.isReady()) {
+                // Discord bot not ready, skip sync
+                return;
+            }
+
+            const ranks = await this.rankRepository.getAllRanks();
+            // Sort ranks by emerald reward descending to prioritize better ranks
+            ranks.sort((a, b) => (b.dailyReward?.emerald || 0) - (a.dailyReward?.emerald || 0));
+
+            const foundRankIDs = [];
+
+            // Find all ranks that the user has the Discord role for
+            for (const rank of ranks) {
+                if (!rank.discordID) continue;
+
+                // Find guild containing the role
+                let hasRole = false;
+                for (const guild of client.dcBot.guilds.cache.values()) {
+                    if (guild.roles.cache.has(rank.discordID)) {
+                        try {
+                            const member = await guild.members.fetch(user.discordID).catch(() => null);
+                            if (member && member.roles.cache.has(rank.discordID)) {
+                                hasRole = true;
+                                break;
+                            }
+                        } catch (e) {
+                            // Ignore fetch error (user not in guild)
+                        }
+                    }
+                }
+
+                if (hasRole) {
+                    foundRankIDs.push(rank.rankID);
+                }
+            }
+
+            const currentRanks = user.additionalInfo.ranks || [];
+
+            // Check if ranks changed
+            // Simple array comparison
+            const ranksChanged = JSON.stringify(foundRankIDs.sort()) !== JSON.stringify(currentRanks.sort());
+
+            if (ranksChanged) {
+                 if (foundRankIDs.length > 0) {
+                    Logger.info(`[RankService.syncUserRank] 更新用戶等級: ${user.playerID} (Ranks: ${foundRankIDs.join(', ')})`);
+                    
+                    await this.userRepository.updateUser(playerUUID, {
+                        additionalInfo: {
+                            ...user.additionalInfo,
+                            ranks: foundRankIDs,
+                            rankSetTime: Math.floor(Date.now() / 1000)
+                        }
+                    });
+                 } else {
+                    // No matching Discord role found.
+                    // If current rank is linked to a Discord role, remove it.
+                    if (currentRanks.length > 0) {
+                        Logger.info(`[RankService.syncUserRank] 移除用戶等級 (Discord 資格喪失): ${user.playerID}`);
+                        await this.removeUserRank(playerUUID);
+                    }
+                 }
+            }
+
+        } catch (error) {
+            Logger.error(`[RankService.syncUserRank] 同步等級失敗 (${playerUUID}):`, error);
+        }
     }
 
     /**
@@ -157,8 +235,9 @@ class RankService {
             return null;
         }
 
-        const userRankID = user.additionalInfo?.rank;
-        if (!userRankID) {
+        const userRankIDs = user.additionalInfo?.ranks || [];
+
+        if (userRankIDs.length === 0) {
             return {
                 user: user,
                 rank: null,
@@ -166,11 +245,46 @@ class RankService {
             };
         }
 
-        const rank = await this.rankRepository.getRankByID(userRankID);
+        // Fetch all ranks
+        const ranks = [];
+        for (const id of userRankIDs) {
+            const r = await this.rankRepository.getRankByID(id);
+            if (r) ranks.push(r);
+        }
+
+        if (ranks.length === 0) {
+             return {
+                user: user,
+                rank: null,
+                hasRank: false
+            };
+        }
+
+        // Calculate accumulated benefits
+        // Primary rank is the first one (highest priority due to sort)
+        // Sort ranks by emerald reward descending to ensure primary rank logic is consistent with syncUserRank
+        ranks.sort((a, b) => (b.dailyReward?.emerald || 0) - (a.dailyReward?.emerald || 0));
+        const primaryRank = ranks[0];
+
+        const compositeRank = {
+            ...primaryRank,
+            dailyReward: {
+                emerald: ranks.reduce((sum, r) => sum + (r.dailyReward?.emerald || 0), 0),
+                coin: ranks.reduce((sum, r) => sum + (r.dailyReward?.coin || 0), 0)
+            },
+            bonusOdds: parseFloat(ranks.reduce((sum, r) => sum + (r.bonusOdds || 0), 0).toFixed(2)),
+            // Keep other properties from primary rank (name, prefix, etc.)
+            rankName: primaryRank.rankName, 
+            description: primaryRank.description,
+            discordID: primaryRank.discordID,
+            prefix: primaryRank.prefix
+        };
+
         return {
             user: user,
-            rank: rank,
-            hasRank: !!rank
+            rank: compositeRank,
+            hasRank: true,
+            allRanks: ranks
         };
     }
 
@@ -251,7 +365,7 @@ class RankService {
         try {
             const allUsers = await this.userRepository.getAllUsers();
             const usersWithRank = allUsers.filter(user => 
-                user.additionalInfo?.rank === rankID
+                user.additionalInfo?.ranks?.includes(rankID)
             );
 
             Logger.debug(`[RankService.getUsersByRank] 等級 ${rankID} 有 ${usersWithRank.length} 個用戶`);
@@ -344,10 +458,12 @@ class RankService {
             let usersWithRank = 0;
             
             allUsers.forEach(user => {
-                const userRank = user.additionalInfo?.rank;
-                if (userRank) {
+                const userRanks = user.additionalInfo?.ranks;
+                if (userRanks && userRanks.length > 0) {
                     usersWithRank++;
-                    userRankDistribution[userRank] = (userRankDistribution[userRank] || 0) + 1;
+                    userRanks.forEach(rankID => {
+                        userRankDistribution[rankID] = (userRankDistribution[rankID] || 0) + 1;
+                    });
                 }
             });
 
@@ -385,16 +501,23 @@ class RankService {
             };
 
             for (const assignment of assignments) {
-                const result = await this.setUserRank(assignment.playerUUID, assignment.rankID);
-                results.details.push({
-                    playerUUID: assignment.playerUUID,
-                    rankID: assignment.rankID,
-                    ...result
-                });
-
-                if (result.success) {
+                try {
+                    const result = await this.setUserRank(assignment.playerUUID, assignment.rankID);
+                    results.details.push({
+                        playerUUID: assignment.playerUUID,
+                        rankID: assignment.rankID,
+                        success: true,
+                        ...result
+                    });
                     results.success++;
-                } else {
+                } catch (err) {
+                    Logger.error(`[RankService.batchSetUserRanks] 設置失敗 (${assignment.playerUUID} -> ${assignment.rankID}):`, err);
+                    results.details.push({
+                        playerUUID: assignment.playerUUID,
+                        rankID: assignment.rankID,
+                        success: false,
+                        error: err.message
+                    });
                     results.failed++;
                 }
             }

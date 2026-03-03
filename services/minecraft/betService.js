@@ -2,6 +2,10 @@
 const betType = 'normal';
 module.exports.type = betType;
 
+const fs = require('fs').promises;
+const path = require('path');
+const toml = require('smol-toml');
+const Vec3 = require('vec3');
 const { client } = require('../../core/client');
 const Logger = require('../../utils/logger');
 const paymentService = require('./paymentService');
@@ -15,6 +19,7 @@ const betRepository = require('../../repositories/').betRepository;
 const blacklistService = require('../general/blacklistService');
 const { BetError, UserError, PaymentError } = require('../../utils/errors');
 const chatService = require('./chatService');
+const discordService = require('../discord/discordService');
 
 class BetService {
     constructor() {
@@ -22,9 +27,33 @@ class BetService {
         this.bets = [];
         this.eventHandlers = [];
         this.taskInterval = null;
+        this.config = {};
+        this.configPath = path.join(__dirname, '../../data/cfg.toml');
     }
 
-    init() {
+    async loadConfig() {
+        try {
+            const data = await fs.readFile(this.configPath, 'utf8');
+            this.config = toml.parse(data);
+            Logger.info('[BetService] 設定檔讀取成功');
+        } catch (error) {
+            Logger.error('[BetService] 讀取設定檔失敗，將使用預設設定:', error);
+            this.config = {
+                bet: {
+                    eodds: 1.85,
+                    codds: 1.85,
+                    eMax: 1000000,
+                    eMin: 1,
+                    cMax: 1000000,
+                    cMin: 1,
+                    redstoneDustPos: null
+                }
+            };
+        }
+    }
+
+    async init() {
+        await this.loadConfig();
         this.startProcessTasks();
 
         const getEmeraldHandler = async ({ bot, playerId, amount, currentAmount }) => {
@@ -62,7 +91,6 @@ class BetService {
     addTask(betTask) {
         // betTask = { playerId, playerUUID, currency, amount, user, userRank }
         this.bets.push(betTask);
-        console.log(betTask)
     }
 
     getTasks() {
@@ -82,7 +110,7 @@ class BetService {
             }
 
             const betTask = this.bets.shift();
-            Logger.info(`[BetService] 處理下注任務: ${JSON.stringify(betTask)}`);
+            Logger.debug(`[BetService] 處理下注任務: ${JSON.stringify(betTask)}`);
 
             try {
                 await this.processTask(betTask); // 等待整個下注＋轉帳流程結束
@@ -115,19 +143,32 @@ class BetService {
             // get user rank prefix
             const userPrefix = task.userRank ? task.userRank.prefix : '';
 
+            const odds = task.currency === 'emerald' ? (this.config.bet?.eodds || 1.85) : (this.config.bet?.codds || 1.85);
+
             if (result === 'win') {
                 // 0.1+0.2!=0.3, to fix the problem, multiply to 10^4 and then divide to 10^4
-                returnAmount = Math.floor((1.85 * 10000 + (task.userRank ? task.userRank.bonusOdds : 0) * 10000) * task.amount / 10000);
+                returnAmount = Math.floor((odds * 10000 + (task.userRank ? task.userRank.bonusOdds : 0) * 10000) * task.amount / 10000);
                 await this._logBetResult(task, 'win', {
                     userRank: task.userRank ? task.userRank.rankName : '無',
                     bonusOdds: task.userRank ? task.userRank.bonusOdds : 0,
-                    returnAmount: returnAmount
+                    returnAmount: returnAmount,
+                    odds: odds
                 });
 
                 // [11:11:11] &c[ADMIN] &f&lJimmy4Real &r&f贏得了 &6&l100,000,000,000 &f個&a綠寶石 &7(&f賠率: &e1.85+1&7)
-                chatService.addMessage(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l中獎 &6${addCommas(task.amount)} &7-> &6&l${addCommas(returnAmount)} ${currencyColor}${currencyName} &7(&e1.85${task.userRank ? `+${task.userRank.bonusOdds}` : ''}&7)`);
+                chatService.addMessage(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l中獎 &6${addCommas(task.amount)} &7-> &6&l${addCommas(returnAmount)} ${currencyColor}${currencyName} &7(&e${odds}${task.userRank ? `+${task.userRank.bonusOdds}` : ''}&7)`);
 
                 await paymentService[task.currency === 'emerald' ? 'epay' : 'cpay'](task.playerId, returnAmount);
+
+                discordService.sendBetRecord({
+                    player: task.playerId,
+                    amount: task.amount,
+                    currency: task.currency,
+                    result: 'win',
+                    returnAmount: returnAmount,
+                    odds: odds + (task.userRank ? task.userRank.bonusOdds : 0),
+                    rank: task.userRank ? task.userRank.rankName : '無'
+                });
                 
             } else if (result === 'lose') {
                 returnAmount = 0;
@@ -137,12 +178,23 @@ class BetService {
                     returnAmount: 0
                 });
                 chatService.addMessage(`&3[${new Date().toLocaleTimeString('zh-TW', { hour12: false })}]&r ${userPrefix ? userPrefix + ' ' : ''}&b&l${task.playerId} &c&l未中獎`);
+
+                discordService.sendBetRecord({
+                    player: task.playerId,
+                    amount: task.amount,
+                    currency: task.currency,
+                    result: 'lose',
+                    returnAmount: 0,
+                    odds: odds + (task.userRank ? task.userRank.bonusOdds : 0),
+                    rank: task.userRank ? task.userRank.rankName : '無'
+                });
             }
         } catch (error) {
             Logger.error(`[BetService.processTask] ${task.playerId} 下注失敗:`, error);
 
             // 判斷是否為超時類錯誤（超時錯誤只通知，不退款）
-            const isTimeoutError = (error instanceof PaymentError || error.code === 'PAYMENT_TIMEOUT' || error.code == 'TIMEOUT');
+            // 注意：只有 PAYMENT_TIMEOUT 才不退款，其餘 PaymentError（如餘額不足）仍需退款
+            const isTimeoutError = error.code === 'PAYMENT_TIMEOUT';
 
             // 記錄錯誤到資料庫（不發送訊息給玩家）
             const errorResult = await errorHandler.handle(error, task.playerId, task.playerUUID, {
@@ -157,7 +209,6 @@ class BetService {
             });
 
             const errorID = errorResult.errorID || '無';
-
             if (isTimeoutError) {
                 // 超時錯誤：只通知玩家，不退款
                 if (result == 'return') {
@@ -203,7 +254,7 @@ class BetService {
             betType: betType,
             currency: task.currency,
             amount: task.amount,
-            odds: 1.85,
+            odds: additionalInfo.odds || 1.85,
             result: result,
             additionalInfo: {
                 ...additionalInfo,
@@ -214,12 +265,24 @@ class BetService {
 
     async _clickRedstoneDust(block = null, timeout = 10000) {
         if (!block) {
-            block = await client.mcBot.findBlock({
-                point: client.mcBot.entity.position,
-                matching: (block) => block.name === "redstone_wire",
-                maxDistance: 5,
-                count: 1
-            });
+            const configPos = this.config.bet?.redstoneDustPos;
+            if (configPos && Array.isArray(configPos) && configPos.length === 3) {
+                const targetPos = new Vec3(configPos[0], configPos[1], configPos[2]);
+                block = client.mcBot.blockAt(targetPos);
+                if (!block || block.name !== 'redstone_wire') {
+                     Logger.debug(`[BetService] Configured redstone dust at ${targetPos} is not redstone_wire (${block ? block.name : 'null'}). Falling back to search.`);
+                     block = null;
+                }
+            }
+
+            if (!block) {
+                block = await client.mcBot.findBlock({
+                    point: client.mcBot.entity.position,
+                    matching: (block) => block.name === "redstone_wire",
+                    maxDistance: 5,
+                    count: 1
+                });
+            }
         }
 
         if (!block) throw BetError.redstoneNotFound();
@@ -262,7 +325,7 @@ class BetService {
             }
 
             // 如果是超時或其他錯誤
-            if (error.message && error.message.includes('timeout')) {
+            if (error.message && error.message.toLowerCase().includes('timeout')) {
                 throw BetError.redstoneTimeout();
             }
             throw error;
@@ -396,17 +459,54 @@ async function processBetRequest({ bot, playerId, amount, currentAmount, currenc
     currentAmount = removeCommas(currentAmount);
     amount = removeCommas(amount);
 
+    const betConfig = betService.config.bet || {};
+    const min = currency === 'emerald' ? (betConfig.eMin || 1) : (betConfig.cMin || 1);
+    const max = currency === 'emerald' ? (betConfig.eMax || 1000000) : (betConfig.cMax || 1000000);
+
+    if (amount < min) {
+        await handleRefund({
+            bot,
+            playerId,
+            amount,
+            currentAmount,
+            currency,
+            errorType: 'BET_AMOUNT_TOO_LOW',
+            errorMsg: `下注金額過低，最低下注 ${addCommas(min)} ${config.name}`,
+            refundReason: 'refund_bet_amount_too_low',
+            chatMsg: `/m ${playerId} &f下注金額過低，最低下注 &b${addCommas(min)} &f個${config.color}${config.name}&f，已退回給您`
+        });
+        return;
+    }
+
+    if (amount > max) {
+        await handleRefund({
+            bot,
+            playerId,
+            amount,
+            currentAmount,
+            currency,
+            errorType: 'BET_AMOUNT_TOO_HIGH',
+            errorMsg: `下注金額過高，最高下注 ${addCommas(max)} ${config.name}`,
+            refundReason: 'refund_bet_amount_too_high',
+            chatMsg: `/m ${playerId} &f下注金額過高，最高下注 &b${addCommas(max)} &f個${config.color}${config.name}&f，已退回給您`
+        });
+        return;
+    }
+
     // 驗證玩家並檢查黑名單/EULA
     const validation = await validatePlayerAndBlacklist({ bot, playerId, amount, currency });
     if (!validation) return;
 
     const { playerUUID, user } = validation;
 
+    await rankService.syncUserRank(playerUUID);
+
     // 獲取用戶等級（僅綠寶石需要）
     const userRank = currency === 'emerald' ? await rankService.getUserRank(playerUUID) : null;
 
     // 檢查餘額
-    if (currentAmount - amount - amount * 1.85 < 0) {
+    const odds = currency === 'emerald' ? (betConfig.eodds || 1.85) : (betConfig.codds || 1.85);
+    if (currentAmount - amount - amount * odds < 0) {
         await handleRefund({
             bot,
             playerId,
