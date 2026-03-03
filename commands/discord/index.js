@@ -11,6 +11,17 @@ const configContent = fs.readFileSync(configPath, 'utf-8');
 
 const config = toml.parse(configContent);
 
+// Load data config for features
+const dataConfigPath = path.join(__dirname, '..', '..', 'data', 'cfg.toml');
+let features = [];
+try {
+    const dataConfigContent = fs.readFileSync(dataConfigPath, 'utf-8');
+    const dataConfig = toml.parse(dataConfigContent);
+    features = dataConfig.general?.features || [];
+} catch (e) {
+    Logger.warn('[Discord] 無法讀取 data/cfg.toml:', e);
+}
+
 let eventHandlers = [];
 
 async function init() {
@@ -71,6 +82,12 @@ async function registerCommands(commandName = 'all') {
             
             const command = require(commandPath);
             if (command && command.data && typeof command.execute === 'function') {
+                // Check feature flag
+                if (command.feature && !features.includes(command.feature)) {
+                    Logger.warn(`[Discord] 指令 ${command.data.name} 未啟用 (${command.feature})`);
+                    return;
+                }
+
                 // 更新/替換指定指令到快取的指令集合
                 client.dcCommands.set(command.data.name, command);
 
@@ -113,6 +130,12 @@ async function registerCommands(commandName = 'all') {
                 continue;
             }
             if (command && command.data && typeof command.execute === 'function') {
+                // Check feature flag
+                if (command.feature && !features.includes(command.feature)) {
+                    Logger.debug(`[Discord] 跳過未啟用的指令: ${command.data.name}`);
+                    continue;
+                }
+
                 client.dcCommands.set(command.data.name, command);
                 commands.push(command.data.toJSON());
                 
@@ -153,7 +176,7 @@ async function unregisterCommand(commandName) {
             await command.cleanup();
         }
         client.dcCommands.delete(commandName);
-        
+
         // 清除 require 快取
         const commandPath = path.join(__dirname, 'slashCommands', `${commandName}.js`);
         delete require.cache[require.resolve(commandPath)];

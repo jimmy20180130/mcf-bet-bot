@@ -1,6 +1,9 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const { betRepository, userRepository } = require('../../../repositories');
 const Logger = require('../../../utils/logger');
+const fs = require('fs');
+const path = require('path');
+const toml = require('smol-toml');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -279,13 +282,18 @@ async function execute(interaction) {
 
     // check user permissions
     const user = await userRepository.getUserByDiscordID(interaction.user.id);
-    console.log(user)
     if (!user) {
         await interaction.editReply('⚠️ 請先綁定帳號後再使用此指令');
         return;
     }
 
-    if (advancedOption && !interaction.member.permissions.has('Administrator')) {
+    // 讀取設定檔
+    const configPath = path.join(__dirname, '../../../config.toml');
+    const configContent = fs.readFileSync(configPath, 'utf-8');
+    const config = toml.parse(configContent);
+    const adminIds = config.general.discordAdmin || [];
+
+    if (advancedOption && !adminIds.includes(interaction.user.id)) {
         await interaction.editReply('❌ 進階結果僅限管理員使用');
         return;
     }
@@ -434,15 +442,15 @@ async function execute(interaction) {
         return;
     }
 
-    const betData = await betRepository.getUserBets(user.playerUUID, {
-        timeRange: { laterThan: laterThanTimestamp, earlierThan: earlierThanTimestamp },
-        amount: { minAmount, maxAmount },
-        coinTimeRange: { laterThan: coinLaterThanTimestamp, earlierThan: coinEarlierThanTimestamp },
-        coinAmount: { minAmount: coinMinAmount, maxAmount: coinMaxAmount },
-        advanced: advancedOption
-    });
+    try {
+        const betData = await betRepository.getUserBets(user.playerUUID, {
+            timeRange: { laterThan: laterThanTimestamp, earlierThan: earlierThanTimestamp },
+            amount: { minAmount, maxAmount },
+            coinTimeRange: { laterThan: coinLaterThanTimestamp, earlierThan: coinEarlierThanTimestamp },
+            coinAmount: { minAmount: coinMinAmount, maxAmount: coinMaxAmount },
+            advanced: advancedOption
+        });
 
-    console.log(betData);
     // betdata
     // {
     //     totalEmeraldBets: 7,
@@ -455,69 +463,77 @@ async function execute(interaction) {
     //     casinoCoinProfit: 1,
     // }
 
-    const timeRangeField = laterThanOption ? `晚於 ${laterThanOption}` :
-        earlierThanOption ? `早於 ${earlierThanOption}` :
-            dateRangeOption ? `期間 ${dateRangeOption}` : '無時間篩選';
+        const timeRangeField = laterThanOption ? `晚於 ${laterThanOption}` :
+            earlierThanOption ? `早於 ${earlierThanOption}` :
+                dateRangeOption ? `期間 ${dateRangeOption}` : null;
 
-    const moneyRangeField = greaterThanOption ? `大於等於 ${greaterThanOption}` :
-        lessThanOption ? `小於等於 ${lessThanOption}` :
-            amountRangeOption ? `範圍 ${amountRangeOption}` : '無金額篩選';
+        const moneyRangeField = greaterThanOption ? `大於等於 ${greaterThanOption}` :
+            lessThanOption ? `小於等於 ${lessThanOption}` :
+                amountRangeOption ? `範圍 ${amountRangeOption}` : null;
 
-    const coinTimeRangeField = coinLaterThanOption ? `晚於 ${coinLaterThanOption}` :
-        coinEarlierThanOption ? `早於 ${coinEarlierThanOption}` :
-            coinDateRangeOption ? `期間 ${coinDateRangeOption}` : '無時間篩選';
+        const coinTimeRangeField = coinLaterThanOption ? `晚於 ${coinLaterThanOption}` :
+            coinEarlierThanOption ? `早於 ${coinEarlierThanOption}` :
+                coinDateRangeOption ? `期間 ${coinDateRangeOption}` : null;
 
-    const coinMoneyRangeField = coinGreaterThanOption ? `大於等於 ${coinGreaterThanOption}` :
-        coinLessThanOption ? `小於等於 ${coinLessThanOption}` :
-            coinAmountRangeOption ? `範圍 ${coinAmountRangeOption}` : '無金額篩選';
+        const coinMoneyRangeField = coinGreaterThanOption ? `大於等於 ${coinGreaterThanOption}` :
+            coinLessThanOption ? `小於等於 ${coinLessThanOption}` :
+                coinAmountRangeOption ? `範圍 ${coinAmountRangeOption}` : null;
 
-    function formatStats({ bet, win, count }, showDetailed) {
-        if (showDetailed) {
-            return [
-                `下注金額: ${bet} | 下注次數: ${count}`,
-                `贏得金額: ${win} | 賭場盈虧: ${bet - win}`
-            ].join('\n');
+        function formatStats({ bet, win, count }, showDetailed) {
+            if (showDetailed) {
+                return [
+                    `下注金額: ${bet} | 下注次數: ${count}`,
+                    `贏得金額: ${win} | 賭場盈虧: ${bet - win}`
+                ].join('\n');
+            }
+            return `下注金額: ${bet} | 下注次數: ${count}`;
         }
-        return `下注金額: ${bet} | 下注次數: ${count}`;
-    }
 
-    const emeraldResult = formatStats({
-        bet: betData.totalEmeraldBetAmount,
-        win: betData.winEmeraldBetAmount,
-        count: betData.totalEmeraldBets
-    }, advancedOption);
+        const emeraldResult = formatStats({
+            bet: betData.totalEmeraldBetAmount,
+            win: betData.winEmeraldBetAmount,
+            count: betData.totalEmeraldBets
+        }, advancedOption);
 
-    const coinResult = formatStats({
-        bet: betData.totalCoinBetAmount,
-        win: betData.winCoinBetAmount,
-        count: betData.totalCoinBets
-    }, advancedOption);
+        const coinResult = formatStats({
+            bet: betData.totalCoinBetAmount,
+            win: betData.winCoinBetAmount,
+            count: betData.totalCoinBets
+        }, advancedOption);
 
-    const imageUrl = user.playerID === '所有人'
-        ? 'https://xi11.cc/wool'
-        : `https://minotar.net/helm/${user.playerUUID}/64.png`;
+        const imageUrl = user.playerID === '所有人'
+            ? 'https://xi11.cc/wool'
+            : `https://minotar.net/helm/${user.playerUUID}/64.png`;
 
-    const embed = new EmbedBuilder()
-        .setColor(0x00FFFF)
-        .setTitle('流水查詢')
-        .addFields(
+        const fields = [
             { name: '玩家 ID', value: user.playerID, inline: true },
             { name: 'Discord', value: user.discordID ? `<@${user.discordID}>` : '尚未綁定', inline: true },
             // { name: '查詢場所', value: interaction.guild.name, inline: true },
-            { name: '玩家 UUID', value: user.playerUUID, inline: false },
-            { name: '綠寶石查詢期間', value: timeRangeField, inline: false },
-            { name: '綠寶石金額限制', value: moneyRangeField, inline: false },
-            { name: '綠寶石', value: emeraldResult, inline: false },
-            { name: '村民錠查詢期間', value: coinTimeRangeField, inline: false },
-            { name: '村民錠金額限制', value: coinMoneyRangeField, inline: false },
-            { name: '村民錠', value: coinResult, inline: false },
-        )
-        .setColor("#313338")
-        .setThumbnail(imageUrl)
-        .setFooter({ text: 'Jimmy Bot', iconURL: 'https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024&format=webp&width=0&height=256' })
-        .setTimestamp();
+            { name: '玩家 UUID', value: user.playerUUID, inline: false }
+        ];
 
-    await interaction.editReply({ embeds: [embed] });
+        if (timeRangeField) fields.push({ name: '綠寶石查詢期間', value: timeRangeField, inline: false });
+        if (moneyRangeField) fields.push({ name: '綠寶石金額限制', value: moneyRangeField, inline: false });
+        fields.push({ name: '綠寶石', value: emeraldResult, inline: false });
+
+        if (coinTimeRangeField) fields.push({ name: '村民錠查詢期間', value: coinTimeRangeField, inline: false });
+        if (coinMoneyRangeField) fields.push({ name: '村民錠金額限制', value: coinMoneyRangeField, inline: false });
+        fields.push({ name: '村民錠', value: coinResult, inline: false });
+
+        const embed = new EmbedBuilder()
+            .setColor(0x00FFFF)
+            .setTitle('流水查詢')
+            .addFields(fields)
+            .setColor("#313338")
+            .setThumbnail(imageUrl)
+            .setFooter({ text: 'Jimmy Bot', iconURL: 'https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024&format=webp&width=0&height=256' })
+            .setTimestamp();
+
+        await interaction.editReply({ embeds: [embed] });
+    } catch (error) {
+        Logger.error('[record] 查詢下注記錄失敗:', error);
+        await interaction.editReply({ content: '❌ 查詢失敗，請稍後再試', flags: [MessageFlags.Ephemeral] });
+    }
 
     //await interaction.editReply('此指令尚在開發中，請稍後再試。');
 }

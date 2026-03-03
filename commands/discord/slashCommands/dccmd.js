@@ -1,6 +1,9 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { client } = require('../../../core/client');
 const Logger = require('../../../utils/logger');
+const fs = require('fs');
+const path = require('path');
+const toml = require('smol-toml');
 
 // Store pending reloads on client to persist across reloads
 if (!client.pendingReloads) {
@@ -48,6 +51,7 @@ function cleanup() {
 }
 
 module.exports = {
+    feature: 'commands.discord.slashCommands.dccmd',
     data: new SlashCommandBuilder()
         .setName('dccmd')
         .setNameLocalizations({
@@ -80,8 +84,7 @@ module.exports = {
                         .setRequired(false)
                         .setAutocomplete(true)
                 )
-        )
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        ),
 
     async autocomplete(interaction) {
         const focusedValue = interaction.options.getFocused();
@@ -108,12 +111,15 @@ module.exports = {
             await interaction.deferReply({ flags: 64 }); // Ephemeral
 
             try {
+                // 讀取設定檔
+                const configPath = path.join(__dirname, '../../../config.toml');
+                const configContent = fs.readFileSync(configPath, 'utf-8');
+                const config = toml.parse(configContent);
+                const adminIds = config.general.discordAdmin || [];
+
                 // 檢查權限
-                if (!interaction.member.permissions.has('Administrator') && interaction.user.id !== '1256550027040657409') {
-                    await interaction.reply({
-                        content: '❌ 執行失敗: 無權限使用此指令',
-                        ephemeral: true
-                    });
+                if (!adminIds.includes(interaction.user.id)) {
+                    await interaction.editReply('❌ 執行失敗: 無權限使用此指令');
                     return;
                 }
 

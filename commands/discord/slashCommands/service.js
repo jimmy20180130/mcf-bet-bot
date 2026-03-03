@@ -1,8 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const Logger = require('../../../utils/logger');
 const serviceManager = require('../../../services/serviceManager');
+const fs = require('fs');
+const path = require('path');
+const toml = require('smol-toml');
 
 module.exports = {
+    feature: 'commands.discord.slashCommands.service',
     data: new SlashCommandBuilder()
         .setName('service')
         .setNameLocalizations({
@@ -137,8 +141,14 @@ module.exports = {
     },
 
     async execute(interaction) {
+        // 讀取設定檔
+        const configPath = path.join(__dirname, '../../../config.toml');
+        const configContent = fs.readFileSync(configPath, 'utf-8');
+        const config = toml.parse(configContent);
+        const adminIds = config.general.discordAdmin || [];
+
         // 權限檢查
-        if (!interaction.member.permissions.has('Administrator') && interaction.user.id !== '1256550027040657409') {
+        if (!adminIds.includes(interaction.user.id)) {
             await interaction.reply({
                 content: '❌ 執行失敗: 無權限使用此指令',
                 ephemeral: true

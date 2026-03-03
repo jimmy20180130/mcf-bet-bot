@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Logger = require('../../../utils/logger');
 
 module.exports = {
+    feature: 'commands.discord.slashCommands.example',
     data: new SlashCommandBuilder()
         .setName('example')
         .setNameLocalizations({
