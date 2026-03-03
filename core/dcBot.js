@@ -4,6 +4,10 @@ const Logger = require('../utils/logger');
 const path = require('path');
 const fs = require('fs');
 const toml = require('smol-toml')
+const { repositories } = require('../repositories');
+const rankService = require('../services/general/rankService');
+const discordService = require('../services/discord/discordService');
+
 // 讀取配置
 const configPath = path.join(__dirname, '..', 'config.toml');
 const configContent = fs.readFileSync(configPath, 'utf-8');
@@ -42,6 +46,7 @@ async function init() {
         
         // 發送 ready 事件到 client
         client.emit('dcReady', readyClient);
+        client.dcBot = readyClient;
     };
     
     discordClient.once(Events.ClientReady, readyHandler);
@@ -69,6 +74,12 @@ async function init() {
         if (!command) return;
 
         try {
+            discordService.sendCommandLog({
+                platform: 'Discord',
+                user: interaction.user.tag,
+                command: interaction.commandName,
+                args: interaction.options.data.map(opt => `${opt.name}:${opt.value}`).join(' ')
+            });
             await command.execute(interaction);
         } catch (error) {
             Logger.error(`[Discord] 執行指令 ${interaction.commandName} 時發生錯誤:`, error);
@@ -84,6 +95,51 @@ async function init() {
     };
     discordClient.on(Events.InteractionCreate, interactionHandler);
     eventHandlers.push({ event: Events.InteractionCreate, listener: interactionHandler });
+
+    // MessageCreate 事件 (轉發到 Minecraft)
+    const messageHandler = async (message) => {
+        // 忽略機器人訊息
+        if (message.author.bot) return;
+
+        // 檢查是否是 Console 頻道
+        const consoleChannelId = config.general?.consoleChannelID;
+        if (message.channelId !== consoleChannelId) return;
+
+        // 轉發到 Minecraft
+        if (client.mcBot) {
+            try {
+                // 格式: [Discord] <User>: <Message>
+                // 為了避免過長，可能需要截斷
+                const content = message.content.replace(/\n/g, ' '); // 移除換行
+                client.mcBot.chat(content);
+                Logger.info(`[Discord -> MC] ${message.author.tag}: ${content}`);
+            } catch (error) {
+                Logger.error('[Discord] 轉發訊息到 Minecraft 失敗:', error);
+            }
+        }
+    };
+    discordClient.on(Events.MessageCreate, messageHandler);
+    eventHandlers.push({ event: Events.MessageCreate, listener: messageHandler });
+
+    // GuildMemberUpdate 事件
+    const guildMemberUpdateHandler = async (oldMember, newMember) => {
+        try {
+            // 檢查是否是機器人
+            if (newMember.user.bot) return;
+
+            const discordID = newMember.id;
+            const user = await repositories.user.getUserByDiscordID(discordID);
+            
+            if (user) {
+                Logger.debug(`[Discord] 偵測到成員更新 (${newMember.user.tag})，同步等級...`);
+                await rankService.syncUserRank(user.playerUUID);
+            }
+        } catch (error) {
+            Logger.error(`[Discord] 處理成員更新時發生錯誤:`, error);
+        }
+    };
+    discordClient.on(Events.GuildMemberUpdate, guildMemberUpdateHandler);
+    eventHandlers.push({ event: Events.GuildMemberUpdate, listener: guildMemberUpdateHandler });
 
     // 登入
     await discordClient.login(config.general.discordBotToken);

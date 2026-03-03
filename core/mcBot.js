@@ -3,6 +3,7 @@ const Logger = require('../utils/logger');
 const { client } = require('./client');
 const serviceManager = require('../services/serviceManager');
 const blacklistService = require('../services/general/blacklistService');
+const discordService = require('../services/discord/discordService');
 
 class Bot {
     constructor(options) {
@@ -146,6 +147,13 @@ class Bot {
             this.depositQueue.push({ playerId, time: Date.now() });
         }
 
+        discordService.sendCommandLog({
+            platform: 'Minecraft',
+            user: playerId,
+            command: commandName,
+            args: args
+        });
+
         client.emit('mcCommand', { bot: this.bot, playerId, commandName, args });
     }
 
@@ -160,7 +168,8 @@ class Bot {
 
         // check if user is existed in depositQueue, if yes, emit deposit event and remove from queue
         const depositData = this.depositQueue.find(d => d.playerId === playerId);
-        if (depositData) {
+        console.log(depositData);
+        if (depositData && depositData.time + 20000 > Date.now()) {
             client.emit('mcDeposit', { bot: this.bot, playerId, amount, type: '&a綠寶石' });
             this.depositQueue = this.depositQueue.filter(d => d.playerId !== playerId);
         } else {
@@ -177,12 +186,12 @@ class Bot {
         if (!m) return;
         const playerId = m[1];
         const amount = m[2];
-        const currentAmount = m[3];
+        const currentAmount = m[4];
 
         // check if user is existed in depositQueue, if yes, emit deposit event and remove from queue
         const depositData = this.depositQueue.find(d => d.playerId === playerId);
         if (depositData && depositData.time + 20000 > Date.now()) { // 20 seconds
-            client.emit('deposit', { bot: this.bot, playerId, amount, type: '&6村民錠' });
+            client.emit('mcDeposit', { bot: this.bot, playerId, amount, type: '&6村民錠' });
             this.depositQueue = this.depositQueue.filter(d => d.playerId !== playerId);
         } else {
             // clean timeout deposits
@@ -204,11 +213,37 @@ class Bot {
 
     onMessage(message) {
         client.emit('message', message.toString());
+
+        const shouldSkipMessage = (textMessage) => {
+            if (/^\[公共\]/.test(textMessage) || /^\[\!\]/.test(textMessage)) return true;
+            if (/^\[交易\]/.test(textMessage) || /^\[\$\]/.test(textMessage)) return true;
+            if (/^\[閒聊\]/.test(textMessage) || /^\[\@\]/.test(textMessage)) return true;
+            if (/^\[抽獎\]/.test(textMessage) || /^\[\%\]/.test(textMessage)) return true;
+            if (/^\[設施\]/.test(textMessage) || /^\[\!\]/.test(textMessage) || /^\[\*\]/.test(textMessage)) return true;
+            if (/^\[系統\] 新玩家|系統\] 吉日|系統\] 凶日|系統\] .*凶日|系統\] .*吉日/.test(textMessage)) return true;
+            if (/^ \> /.test(textMessage)) return true;
+            if (/^\[系統\] .*提供了 小幫手提示/.test(textMessage)) return true;
+            if (/^.* (has made the advancement|has completed the challenge|has reached the goal)/.test(textMessage)) return true;
+            if (/players sleeping$/.test(textMessage)) return true;
+            if (/目標生命 \: ❤❤❤❤❤❤❤❤❤❤ \/ ([\S]+)/g.test(textMessage)) return true;
+            if (/^\[\?\]/.test(textMessage)) return true;
+            if (/^\=\=/.test(textMessage)) return true;
+            if (/^ >/.test(textMessage)) return true;
+            if (/\[~\]/.test(textMessage)) return true;
+            if (/^┌─回覆自/.test(textMessage)) return true;
+
+            return false;
+        };
+
+        if (shouldSkipMessage(message.toString())) return
+
         Logger.info(message.toAnsi())
+        discordService.sendConsoleMessage(message.toString());
     }
 
     onError(err) {
         Logger.error(`Bot 發生錯誤: ${err.message}`);
+        discordService.sendErrorLog(err, 'Minecraft Bot Error');
     }
 
     async onEnd(reason) {

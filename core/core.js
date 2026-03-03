@@ -3,6 +3,9 @@ const { client } = require('./client');
 const serviceManager = require('../services/serviceManager');
 const mcBot = require('./mcBot');
 const dcBot = require('./dcBot');
+const fs = require('fs');
+const path = require('path');
+const toml = require('smol-toml');
 const rl = require('readline').createInterface({
     input: process.stdin,
     output: process.stdout
@@ -10,7 +13,7 @@ const rl = require('readline').createInterface({
 
 const bot = new mcBot({
     username: 'saraun',
-    host: 'proxy-net-6.mcfallout.net',
+    host: 'sg.mcfallout.net',
     port: 25565,
     auth: 'microsoft',
     version: '1.20.1'
@@ -18,6 +21,17 @@ const bot = new mcBot({
 
 async function initServices() {
     Logger.info('[Core] 正在註冊服務...');
+
+    // Load features config
+    const cfgPath = path.join(__dirname, '../data/cfg.toml');
+    let features = [];
+    try {
+        const cfgContent = fs.readFileSync(cfgPath, 'utf-8');
+        const cfg = toml.parse(cfgContent);
+        features = cfg.general?.features || [];
+    } catch (e) {
+        Logger.warn('[Core] 無法讀取 data/cfg.toml，將略過功能檢查:', e);
+    }
 
     // minecraft
     serviceManager.register({ name: 'paymentService', path: '../services/minecraft/paymentService' });
@@ -33,7 +47,9 @@ async function initServices() {
     serviceManager.register({ name: 'errorHistoryService', path: '../services/general/errorHistoryService' });
     serviceManager.register({ name: 'linkService', path: '../services/general/linkService' });
     serviceManager.register({ name: 'rankService', path: '../services/general/rankService' });
-    serviceManager.register({ name: 'ticketService', path: '../services/general/ticketService' });
+    if (features.includes('services.general.ticketService')) {
+        serviceManager.register({ name: 'ticketService', path: '../services/general/ticketService' });
+    }
     serviceManager.register({ name: 'userInfoService', path: '../services/general/userInfoService' });
 
     // command handler
