@@ -1,6 +1,7 @@
 // commands/minecraft/deposit.js
 
 const { client } = require('../../core/client')
+const Logger = require('../../utils/logger');
 const pendingDeposits = new Map()
 const { withErrorHandling } = require("../../utils/commandHandler");
 
@@ -32,6 +33,7 @@ function cleanup() {
 }
 
 function handleDeposit(bot, playerId, amount, currency) {
+    Logger.debug(`[deposit.handleDeposit] pendingDeposits: ${JSON.stringify([...pendingDeposits.entries()])}`);
     if (pendingDeposits.has(playerId)) {
         const { timer } = pendingDeposits.get(playerId)
         clearTimeout(timer)

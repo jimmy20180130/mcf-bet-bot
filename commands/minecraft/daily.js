@@ -56,11 +56,17 @@ async function execute(bot, playerId, args) {
             await paymentService.epay(playerId, emeraldAmount)
                 .catch(async err => {
                     errorFlag.emerald = true;
-                    errorHandler.handle(err, playerId, playerUUID, {
+                    await errorHandler.handle(err, playerId, playerUUID, {
                         bot: null, // 不重複通知
                         operation: 'daily_reward_epay',
                         details: { amount: emeraldAmount, currency: 'emerald' }
                     });
+                    try {
+                        await userRepository.updateWallet(playerUUID, 'eWallet', emeraldAmount);
+                        Logger.info(`[daily] ${playerId} epay 失敗，已將 ${emeraldAmount} 綠寶石加到錢包`);
+                    } catch (walletErr) {
+                        Logger.error(`[daily] ${playerId} epay 失敗且加錢包也失敗:`, walletErr);
+                    }
                 });
         }
 
@@ -68,24 +74,33 @@ async function execute(bot, playerId, args) {
             await paymentService.cpay(playerId, coinAmount)
                 .catch(async err => {
                     errorFlag.coin = true;
-                    errorHandler.handle(err, playerId, playerUUID, {
+                    await errorHandler.handle(err, playerId, playerUUID, {
                         bot: null, // 不重複通知
                         operation: 'daily_reward_cpay',
                         details: { amount: coinAmount, currency: 'coin' }
                     });
+                    try {
+                        await userRepository.updateWallet(playerUUID, 'cWallet', coinAmount);
+                        Logger.info(`[daily] ${playerId} cpay 失敗，已將 ${coinAmount} 村民錠加到錢包`);
+                    } catch (walletErr) {
+                        Logger.error(`[daily] ${playerId} cpay 失敗且加錢包也失敗:`, walletErr);
+                    }
                 });
         }
 
         if (!errorFlag.emerald && !errorFlag.coin && (coinAmount > 0 || emeraldAmount > 0)) {
+            const parts = [];
+            if (emeraldAmount > 0) parts.push(`&b${addCommas(emeraldAmount)} &f個&a綠寶石`);
+            if (coinAmount > 0) parts.push(`&b${addCommas(coinAmount)} &f個&6村民錠`);
+            
             Logger.info(`[daily] ${playerId} 成功領取每日獎勵: ${addCommas(emeraldAmount)} 個綠寶石和 ${addCommas(coinAmount)} 個村民錠 [${dailyReward.rankName}]`);
-            bot.chat(`/m ${playerId} 成功領取[${dailyReward.rankName}]的每日獎勵: &b${addCommas(emeraldAmount)} &f個&a綠寶石&f和 &b${addCommas(coinAmount)} &f個&6村民錠`);
+            bot.chat(`/m ${playerId} 成功領取[${dailyReward.rankName}]的每日獎勵: ${parts.join('&f和 ')}`);
         } else if ((errorFlag.coin || errorFlag.emerald) && (coinAmount > 0 || emeraldAmount > 0)) {
-            // 發放失敗時已加到錢包
-            bot.chat(
-                `/m ${playerId} 成功領取[${dailyReward.rankName}]的每日獎勵: ` +
-                `&b${addCommas(emeraldAmount)} &f個&a綠寶石${errorFlag.emerald ? ' &c(已加到錢包)' : ''}&f和 ` +
-                `&b${addCommas(coinAmount)} &f個&6村民錠${errorFlag.coin ? ' &c(已加到錢包)' : ''}`
-            );
+            const parts = [];
+            if (emeraldAmount > 0) parts.push(`&b${addCommas(emeraldAmount)} &f個&a綠寶石${errorFlag.emerald ? ' &c(已加到錢包)' : ''}`);
+            if (coinAmount > 0) parts.push(`&b${addCommas(coinAmount)} &f個&6村民錠${errorFlag.coin ? ' &c(已加到錢包)' : ''}`);
+            
+            bot.chat(`/m ${playerId} 成功領取[${dailyReward.rankName}]的每日獎勵: ${parts.join('&f和 ')}`);
         }
     }
 }

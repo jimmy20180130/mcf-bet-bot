@@ -1,9 +1,24 @@
 const fs = require('fs');
 const path = require('path');
+const toml = require('smol-toml');
 const Logger = require('../../utils/logger');
 const { client } = require('../../core/client');
+const { AppError, UserError } = require('../../utils/errors');
 const userRepository = require('../../repositories').userRepository;
 const userinfoService = require('../../services/general/userInfoService');
+const rankService = require('../../services/general/rankService');
+const errorHandler = require('../../services/general/errorHandler');
+
+// Load data config for features
+const dataConfigPath = path.join(__dirname, '..', '..', 'data', 'cfg.toml');
+let features = [];
+try {
+    const dataConfigContent = fs.readFileSync(dataConfigPath, 'utf-8');
+    const dataConfig = toml.parse(dataConfigContent);
+    features = dataConfig.general?.features || [];
+} catch (e) {
+    Logger.warn('[Minecraft] 無法讀取 data/cfg.toml:', e);
+}
 
 Logger.debug('Minecraft command handler loaded');
 
@@ -69,14 +84,17 @@ async function handleCommand({ bot, playerId, commandName, args }) {
         await command.execute(bot, playerId, args);
         // TODO: 紀錄指令執行紀錄
     } catch (error) {
-        if (error.message === 'NO_PERMISSION') {
+        if (error.code === 'NO_PERMISSION') {
             Logger.warn(`[commands.checkUserPermissions] ${playerId} 嘗試使用無權限指令 ${commandName}`);
-            // ignore player
-            return
+            return;
         }
 
-        Logger.error(`[commands.handleCommand] 執行指令時發生錯誤 ${commandName}:`, error);
-        bot.chat(`/m ${playerId} &c使用指令 ${commandName} 失敗: ${error.message}`);
+        const playerUUID = await userinfoService.getMinecraftUUID(playerId).catch(() => null);
+        await errorHandler.handle(error, playerId, playerUUID, {
+            bot,
+            operation: `command:${commandName}`,
+            details: { commandName, args }
+        });
     }
 }
 
@@ -86,7 +104,7 @@ async function checkUserPermissions(bot, playerId, command) {
     // then check the user's permission level
     const playerUUID = await userinfoService.getMinecraftUUID(playerId);
     if (!playerUUID) {
-        throw new Error('玩家資料取得失敗');
+        throw UserError.uuidNotFound(playerId);
     }
 
     // 用 uuid 而不是 playerid 辨認玩家
@@ -97,10 +115,13 @@ async function checkUserPermissions(bot, playerId, command) {
         user = await userRepository.getUserByUUID(playerUUID);
     }
 
+    // Sync user rank
+    await rankService.syncUserRank(playerUUID);
+
     // Check user's permission level
     // TODO: read owner name from github
     if (user.additionalInfo.permissionLevel < command.requiredPermissionLevel && playerId != 'Jimmy4Real') {
-        throw new Error('NO_PERMISSION');
+        throw new AppError('無權限使用此指令', 'NO_PERMISSION');
     }
 
     return true;
@@ -114,6 +135,10 @@ async function registerCommands(commandName='all') {
         if (fs.existsSync(commandPath)) {
             const command = require(commandPath);
             if (command && command.name && typeof command.execute === 'function') {
+                if (command.feature && !features.includes(command.feature)) {
+                    Logger.warn(`[commands] 指令 ${command.name} 未啟用 (${command.feature})`);
+                    return;
+                }
                 client.mcCommands[command.name] = command;
                 // 如果指令有 init 方法，執行它
                 if (typeof command.init === 'function') {
@@ -133,6 +158,10 @@ async function registerCommands(commandName='all') {
             const commandPath = path.join(__dirname, file);
             const command = require(commandPath);
             if (command && command.name && typeof command.execute === 'function') {
+                if (command.feature && !features.includes(command.feature)) {
+                    Logger.debug(`[commands] 跳過未啟用的指令: ${command.name}`);
+                    continue;
+                }
                 client.mcCommands[command.name] = command;
                 // 如果指令有 init 方法，執行它
                 if (typeof command.init === 'function') {
@@ -156,12 +185,6 @@ async function unregisterCommand(commandName) {
             await command.cleanup();
         }
         delete client.mcCommands[commandName];
-        try {
-            const resolved = require.resolve(path.join(__dirname, `${commandName}.js`));
-            delete require.cache[resolved];
-        } catch (e) {
-            // ignore if can't resolve
-        }
     }
 }
 module.exports = {

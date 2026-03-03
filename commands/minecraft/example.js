@@ -2,6 +2,7 @@ const { withErrorHandling } = require("../../utils/commandHandler");
 
 module.exports = {
     name: 'example',
+    feature: 'commands.minecraft.example',
     aliases: [],
     description: '這是一個範例指令',
     usage: '/m bot example [args]',
