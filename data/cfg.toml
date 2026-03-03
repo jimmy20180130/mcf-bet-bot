@@ -1,6 +1,15 @@
 # 廢土對賭機器人進階設定檔
 # 以下區域不需填寫，請使用 Discord Bot 來設定
 [general]
+# hidden discord commands feature or something
+features = [
+    "commands.discord.slashCommands.service",
+    "commands.discord.slashCommands.dccmd",
+    "commands.discord.slashCommands.mccmd",
+    "commands.discord.slashCommands.example",
+    "commands.minecraft.example",
+    "services.general.ticketService",
+]
 
 [ad]
 
