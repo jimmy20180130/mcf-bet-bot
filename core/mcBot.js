@@ -1,6 +1,8 @@
 const mineflayer = require('mineflayer');
 const Logger = require('../utils/logger');
 const PayService = require('../services/payService');
+const BetService = require('../services/betService');
+const ErrorHandler = require('../services/ErrorHandler');
 const mcCommandHandler = require('../commands/minecraft/index');
 
 class mcBot {
@@ -13,12 +15,16 @@ class mcBot {
             auth: 'microsoft',
             version: '1.21.4'
         };
-        this.bot.nick = this.options.username;
-        this.logger = new Logger(`${this.options.username}`, true);
     }
 
     start() {
         this.bot = mineflayer.createBot(this.options);
+        this.bot.logger = new Logger(`${this.options.username}`, true);
+        this.bot.nick = this.options.username;
+        this.bot.PayService = new PayService(this.bot);
+        this.bot.BetService = new BetService(this.bot);
+        this.bot.ErrorHandler = new ErrorHandler(this.bot);
+        this.bot.depositMode = []; //bot.depositMode = [{playerid: sender, expiresAt: Date.now() + 20000}];
         this.bot.on('login', this._onLogin.bind(this));
         this.bot.on('spawn', this._onSpawn.bind(this));
         this.bot.on('message', this._onMessage.bind(this));
@@ -27,40 +33,47 @@ class mcBot {
         this.bot.on('end', this._onEnd.bind(this));
     }
 
-    disconnect(reason) {
-        this.bot.end(reason);
-    }
-
     _onLogin() {
-        this.logger.log(`已登入伺服器 ${this.options.host}`);
+        this.bot.logger.log(`已登入伺服器 ${this.options.host}`);
     }
 
     _onSpawn() {
         // 在 spawn 事件觸發後才能 addChatPattern
         this._addChatPatterns();
-        this.bot.payService = new PayService(this.bot);
-        console.log(this.bot.username)
     }
 
     _onMessage(message) {
-        this.logger.info(message.toAnsi());
+        this.bot.logger.info(message.toAnsi());
     }
 
     _onError(err) {
-        this.logger.error(`[${this.options.username}] 遇到錯誤: ${err}`);
+        this.bot.logger.error(`遇到錯誤: ${err}`);
         if (err.message.includes('Failed to obtain profile data')) {
-            this.bot.end('failed to obtain profile data');
+            this.bot = null
         }
     }
 
     _onKicked(reason) {
-        this.logger.warn(`[${this.options.username}] 被踢出伺服器: ${reason}`);
-        this.bot.end('被踢出伺服器');
+        this.bot.logger.warn(`被踢出伺服器: ${reason.reason}`);
+        try {
+            this.bot.end(reason.reason);
+        } catch (err) { }
     }
 
-    _onEnd() {
-        this.logger.warn(`[${this.options.username}] 連線已結束`);
-        this.bot = null;
+    _onEnd(reason) {
+        if (reason == 'stop') {
+            this.stop = true;
+            this.bot.logger.warn(`Bot 已停止`);
+            this.bot = null;
+            return;
+        } else if (reason == 'restart') {
+            this.bot.logger.warn(`Bot 正在重新啟動`);
+            this.bot = null;
+        } else {
+            this.bot.logger.warn(`連線已結束`);
+            this.bot = null;
+        }
+
     }
 
     _addChatPatterns() {
@@ -90,7 +103,7 @@ class mcBot {
                     this[handler](matches);
                 });
             } else {
-                this.logger.warn(`跳過訊息格式 ${name}: 無法找到處理該訊息格式的函式 ${handler}`);
+                this.bot.logger.warn(`跳過訊息格式 ${name}: 無法找到處理該訊息格式的函式 ${handler}`);
             }
         });
     }
@@ -99,26 +112,64 @@ class mcBot {
         // matches: [ "[Jimmy4Real -> 您] epay Jimmy4Real 100" ]
         matches = /^\[([A-Za-z0-9_]+) -> 您\] ([\p{L}\p{N}_]+)\s*(.*)$/u.exec(matches[0]);
         const [, sender, command, args] = matches;
-        this.logger.debug(`[${this.options.username}] 收到指令: ${command} 參數: ${args} 來自: ${sender}`);
+        this.bot.logger.debug(`收到指令: ${command} 參數: ${args} 來自: ${sender}`);
         mcCommandHandler.executeCommand(this.bot, sender, command, args);
     }
 
-    _handleGetEmerald(matches) {
+    async _handleGetEmerald(matches) {
         matches = /^\[系統\] 您收到了\s+(\w+)\s+轉帳的 (\d{1,3}(,\d{3})*)( 綠寶石 \(目前擁有 (\d{1,3}(,\d{3})*)) 綠寶石\)/.exec(matches[0]);
-        const [, sender, amount, , , current] = matches;
-        this.logger.debug(`[${this.options.username}] 收到綠寶石轉帳: ${amount} 綠寶石 來自: ${sender} 目前擁有: ${current} 綠寶石`);
+        let [, sender, amount, , , current] = matches;
+        amount = parseInt(amount.replace(/,/g, ''));
+        current = parseInt(current.replace(/,/g, ''));
+        this.bot.logger.debug(`收到綠寶石轉帳: ${amount} 綠寶石 來自: ${sender} 目前擁有: ${current} 綠寶石`);
+
+        if (this.bot.depositMode.find(m => m.playerid === sender)) {
+            this.bot.depositMode = this.bot.depositMode.filter(m => m.playerid !== sender);
+            this.bot.chat(`/m ${sender} 已收到您存放的 ${amount} 綠寶石，已退出存放模式`);
+            this.bot.logger.debug(`${sender} exited deposit mode`);
+            return;
+        }
+
+        await this.bot.BetService.addBet(sender, amount, 'emerald')
+            .then((result) => {
+                // { success: true, target, amount, currency }
+                this.bot.logger.debug(`已完成下注紀錄: ${result.amount} ${result.currency} 來自: ${result.target}`);
+            })
+            .catch(async (err) => {
+                // { success: false, target, amount, currency, errType: 'spawn', error: err }
+                await this.bot.ErrorHandler.handleBetError(err);
+            });
     }
 
-    _handleGetCoin(matches) {
+    async _handleGetCoin(matches) {
         matches = /^\[系統\] 您收到了 (\S+) 送來的 (\d{1,3}(,\d{3})*|\d+) 村民錠\. \(目前擁有 (\d{1,3}(,\d{3})*|\d+) 村民錠\)/.exec(matches[0]);
-        const [, sender, amount, , current] = matches;
-        this.logger.debug(`[${this.options.username}] 收到村民錠轉帳: ${amount} 村民錠 來自: ${sender} 目前擁有: ${current} 村民錠`);
+        let [, sender, amount, , current] = matches;
+        amount = parseInt(amount.replace(/,/g, ''));
+        current = parseInt(current.replace(/,/g, ''));
+        this.bot.logger.debug(`收到村民錠轉帳: ${amount} 村民錠 來自: ${sender} 目前擁有: ${current} 村民錠`);
+
+        if (this.bot.depositMode.find(m => m.playerid === sender)) {
+            this.bot.depositMode = this.bot.depositMode.filter(m => m.playerid !== sender);
+            this.bot.chat(`/m ${sender} 已收到您存放的 ${amount} 村民錠，已退出存放模式`);
+            this.bot.logger.debug(`${sender} exited deposit mode`);
+            return;
+        }
+
+        await this.bot.BetService.addBet(sender, amount, 'coin')
+            .then((result) => {
+                // { success: true, target, amount, currency }
+                this.bot.logger.debug(`已完成下注紀錄: ${result.amount} ${result.currency} 來自: ${result.target}`);
+            })
+            .catch(async (err) => {
+                // { success: false, target, amount, currency, errType: 'spawn', error: err }
+                await this.bot.ErrorHandler.handleBetError(err);
+            });
     }
 
     _handleTpRequest(matches) {
         matches = /^\[系統\] (\w+) 想要你傳送到 該玩家 的位置|^\[系統\] (\w+) 想要傳送到 你 的位置/.exec(matches[0]);
         const sender = matches[1] || matches[2];
-        this.logger.debug(`[${this.options.username}] 收到傳送請求來自: ${sender}`);
+        this.bot.logger.debug(`收到傳送請求來自: ${sender}`);
     }
 }
 
