@@ -1,7 +1,8 @@
 class Logger {
-    constructor(debugMode = false) {
+    constructor(prefix, debugMode = false) {
         this.logs = [];
         this.debugMode = debugMode;
+        this.prefix = prefix;
     }
 
     get count() {
@@ -24,7 +25,7 @@ class Logger {
     log(message) {
         const timestamp = this._formatTimestamp(new Date());
         this.logs.push({ message, timestamp });
-        console.log(`[${timestamp}] \x1b[36m[INFO]\x1b[0m ${message}`);
+        console.log(`[${timestamp}] [${this.prefix}] \x1b[36m[INFO]\x1b[0m ${message}`);
     }
 
     info(message) {
@@ -45,7 +46,7 @@ class Logger {
         const timestamp = this._formatTimestamp(new Date());
         this.logs.push({ message, timestamp });
         const fileInfo = this._getFileInfo(new Error().stack || '');
-        console.log(`[${timestamp}] \x1b[33m[WARN]\x1b[0m \x1b[43m${message}\x1b[0m ${fileInfo}`);
+        console.log(`[${timestamp}] [${this.prefix}] \x1b[33m[WARN]\x1b[0m \x1b[43m${message}\x1b[0m ${fileInfo}`);
     }
 
     error(...args) {
@@ -63,7 +64,7 @@ class Logger {
 
         this.logs.push({ message, timestamp });
         const fileInfo = this._getFileInfo(stack);
-        console.log(`[${timestamp}] \x1b[31m[ERROR]\x1b[0m \x1b[41m${message}\x1b[0m ${fileInfo}`);
+        console.log(`[${timestamp}] [${this.prefix}] \x1b[31m[ERROR]\x1b[0m \x1b[41m${message}\x1b[0m ${fileInfo}`);
     }
 
     debug(message) {
@@ -73,8 +74,8 @@ class Logger {
         if (!this.debugMode) return;
 
         const fileInfo = this._getFileInfo(new Error().stack || '');
-        console.log(`[${timestamp}] \x1b[34m[DEBUG]\x1b[0m ${message} ${fileInfo}`);
+        console.log(`[${timestamp}] [${this.prefix}] \x1b[34m[DEBUG]\x1b[0m ${message} ${fileInfo}`);
     }
 }
 
-module.exports = new Logger(false);
+module.exports = Logger;
