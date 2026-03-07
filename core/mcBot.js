@@ -4,6 +4,7 @@ const PayService = require('../services/payService');
 const BetService = require('../services/betService');
 const ErrorHandler = require('../services/ErrorHandler');
 const mcCommandHandler = require('../commands/minecraft/index');
+const MinecraftDataService = require('../services/minecraftDataService');
 
 class mcBot {
     constructor(options, index) {
@@ -24,6 +25,7 @@ class mcBot {
         this.bot.PayService = new PayService(this.bot);
         this.bot.BetService = new BetService(this.bot);
         this.bot.ErrorHandler = new ErrorHandler(this.bot);
+        this.bot.MinecraftDataService = new MinecraftDataService();
         this.bot.depositMode = []; //bot.depositMode = [{playerid: sender, expiresAt: Date.now() + 20000}];
         this.bot.on('login', this._onLogin.bind(this));
         this.bot.on('spawn', this._onSpawn.bind(this));
