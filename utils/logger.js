@@ -29,7 +29,6 @@ class Logger {
     }
 
     info(message) {
-        // Alias for log method to maintain compatibility
         this.log(message);
     }
 
