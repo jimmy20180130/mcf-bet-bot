@@ -1,16 +1,13 @@
-const Logger = require('../utils/logger');
-
 class PayService {
     constructor(bot) {
         this.bot = bot;
         this.queue = [];
         this.isProcessing = false;
-        this.logger = new Logger(`PayService-${this.bot.nick}`, true);
     }
 
     async pay(target, amount, currency = 'emerald') {
-        return new Promise((resolve, reject) => {
-            this.queue.push({ target, amount, resolve, reject });
+        return await new Promise((resolve, reject) => {
+            this.queue.push({ target, amount, currency, resolve, reject });
             this._execute();
         });
     }
@@ -21,16 +18,16 @@ class PayService {
         this.isProcessing = true;
 
         const task = this.queue.shift();
-        const { target, amount, resolve, reject } = task;
+        const { target, amount, currency, resolve, reject } = task;
 
         try {
-            this.logger.info(`準備處理轉帳: ${target} ${amount} (剩餘任務: ${this.queue.length})`);
-            const result = await this._performTransfer(target, amount);
+            this.bot.logger.info(`準備處理轉帳: ${target} ${amount} ${currency} (剩餘任務: ${this.queue.length})`);
+            const result = await this._performTransfer(target, amount, currency);
             resolve(result);
 
         } catch (err) {
-            this.logger.error(`轉帳失敗: ${err.error.message}`);
-            reject(err.error);
+            this.bot.logger.error(`轉帳失敗: ${err.error.message}`);
+            reject(err);
 
         } finally {
             await new Promise(r => setTimeout(r, 500));
@@ -40,14 +37,14 @@ class PayService {
     }
 
     _performTransfer(target, amount, currency) {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             let finalized = false;
 
             const onSuccess = (matches) => {
                 if (finalized) return;
 
                 cleanup();
-                resolve({ success: true, target, amount });
+                resolve({ success: true, target, amount, currency });
             };
 
             const onFailure = (eventName, matches) => {
@@ -60,7 +57,7 @@ class PayService {
                 error.code = eventName;
                 error.raw = matches[0];
 
-                reject({ success: false, target, amount, error });
+                reject({ success: false, target, amount, currency, error });
             };
 
             const cleanup = () => {
@@ -73,7 +70,10 @@ class PayService {
             const timer = setTimeout(() => {
                 if (finalized) return;
                 cleanup();
-                reject(new Error('伺服器回應逾時'));
+                const timeoutError = new Error('轉帳逾時');
+                timeoutError.code = 'timeout';
+                timeoutError.raw = '';
+                reject({ success: false, target, amount, currency, error: timeoutError });
             }, 10000);
 
             const chatPatterns = [
@@ -117,7 +117,13 @@ class PayService {
             successEvents.forEach(e => this.bot.once(`chat:${e}`, handlers[e]));
             failureEvents.forEach(e => this.bot.once(`chat:${e}`, handlers[e]));
 
-            this.bot.chat(`/pay ${target} ${amount}`);
+            if (currency === 'emerald') {
+                this.bot.chat(`/pay ${target} ${amount}`);
+            } else if (currency === 'coin') {
+                this.bot.chat(`/cointrans ${target} ${amount}`);
+                await this.bot.waitForTicks(30) // 2s
+                this.bot.chat(target);
+            }
         });
     }
 }
