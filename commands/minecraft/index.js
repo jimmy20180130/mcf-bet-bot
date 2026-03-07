@@ -1,20 +1,27 @@
-const PayService = require('../../services/payService');
+const fs = require('fs');
+
+const commandFiles = fs.readdirSync('./commands/minecraft').filter(file => file.endsWith('.js'));
+const commands = new Map();
+
+for (const file of commandFiles) {
+    const command = require(`./${file}`);
+    commands.set(command.name, command);
+    if (command.aliases) {
+        command.aliases.forEach(alias => {
+            commands.set(alias, command);
+        });
+    }
+}
 
 async function executeCommand(bot, sender, command, args) {
-    switch (command.toLowerCase()) {
-        case 'epay':
-            const [target, amount] = args.split(' ');
-            if (!target || !amount) {
-                bot.chat(`/msg ${sender} 指令格式錯誤! 正確格式: /pay 玩家ID 金額`);
-                return;
-            }
-            await new PayService(bot).pay(target, amount, 'emerald')
-                .then(() => {
-                    bot.chat(`/msg ${sender} 已成功轉帳 ${amount} 綠寶石 給 ${target}`);
-                })
-                .catch(err => {
-                    bot.chat(`/msg ${sender} 轉帳失敗: ${err.message}`);
-                });
+    const cmd = commands.get(command);
+    if (!cmd) return
+
+    try {
+        await cmd.execute(bot, command, sender, args);
+    } catch (err) {
+        bot.logger.error(`執行指令 ${command} 時發生錯誤: ${err}`);
+        bot.chat(`/msg ${sender} 執行指令 ${command} 時發生錯誤: ${err.message}`);
     }
 }
 
