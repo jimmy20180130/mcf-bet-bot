@@ -5,9 +5,10 @@ class PayService {
         this.bot = bot;
         this.queue = [];
         this.isProcessing = false;
+        this.logger = new Logger(`PayService-${this.bot.nick}`, true);
     }
 
-    async pay(target, amount) {
+    async pay(target, amount, currency = 'emerald') {
         return new Promise((resolve, reject) => {
             this.queue.push({ target, amount, resolve, reject });
             this._execute();
@@ -23,13 +24,13 @@ class PayService {
         const { target, amount, resolve, reject } = task;
 
         try {
-            Logger.info(`[PayService] 準備處理轉帳: ${target} ${amount} (剩餘任務: ${this.queue.length})`);
+            this.logger.info(`準備處理轉帳: ${target} ${amount} (剩餘任務: ${this.queue.length})`);
             const result = await this._performTransfer(target, amount);
             resolve(result);
 
         } catch (err) {
-            Logger.error(`[PayService] 轉帳失敗: ${err.message}`);
-            reject(err);
+            this.logger.error(`轉帳失敗: ${err.error.message}`);
+            reject(err.error);
 
         } finally {
             await new Promise(r => setTimeout(r, 500));
@@ -38,45 +39,86 @@ class PayService {
         }
     }
 
-    // haven't implemented yet
-    _performTransfer(target, amount) {
-        // return new Promise((resolve, reject) => {
-        //     let finalized = false;
+    _performTransfer(target, amount, currency) {
+        return new Promise((resolve, reject) => {
+            let finalized = false;
 
-        //     const onSuccess = (matches) => {
-        //         if (finalized) return;
-        //         // 這裡加入你的金額與 ID 比對邏輯
-        //         if (matches[2] === target) {
-        //             cleanup();
-        //             resolve({ success: true, target, amount });
-        //         }
-        //     };
+            const onSuccess = (matches) => {
+                if (finalized) return;
 
-        //     const onFailure = (matches) => {
-        //         if (finalized) return;
-        //         cleanup();
-        //         reject(new Error(matches[0]));
-        //     };
+                cleanup();
+                resolve({ success: true, target, amount });
+            };
 
-        //     const cleanup = () => {
-        //         finalized = true;
-        //         clearTimeout(timer);
-        //         this.bot.removeListener('chat:epaySuccess', onSuccess);
-        //         this.bot.removeListener('chat:epayNoMoney', onFailure);
-        //     };
+            const onFailure = (eventName, matches) => {
+                if (finalized) return;
+                cleanup();
 
-        //     const timer = setTimeout(() => {
-        //         if (finalized) return;
-        //         cleanup();
-        //         // 記得加上之前討論的垃圾回收 (GC) 邏輯
-        //         reject(new Error('伺服器回應逾時'));
-        //     }, 10000);
+                const errorMessage = errorMap[eventName] || '未知錯誤';
+                const error = new Error(errorMessage);
 
-        //     this.bot.on('chat:epaySuccess', onSuccess);
-        //     this.bot.on('chat:epayNoMoney', onFailure);
-            
-        //     this.bot.chat(`/epay ${target} ${amount}`);
-        // });
+                error.code = eventName;
+                error.raw = matches[0];
+
+                reject({ success: false, target, amount, error });
+            };
+
+            const cleanup = () => {
+                finalized = true;
+                clearTimeout(timer);
+                successEvents.forEach(e => this.bot.removeListener(`chat:${e}`, onSuccess));
+                failureEvents.forEach(e => this.bot.removeListener(`chat:${e}`, onFailure));
+            };
+
+            const timer = setTimeout(() => {
+                if (finalized) return;
+                cleanup();
+                reject(new Error('伺服器回應逾時'));
+            }, 10000);
+
+            const chatPatterns = [
+                { name: 'epayProcessing', regex: new RegExp(`^\[系統\] 正在處理您的其他請求, 請稍後`) },
+                { name: 'epayNoMoney', regex: /^\[系統\] 綠寶石不足, 尚需(.+)$/ },
+                { name: 'epayNotSamePlace', regex: /^\[系統\] 只能轉帳給同一分流的線上玩家\. 請檢查對方的ID與所在分流(.*)/ },
+                { name: 'epaySuccess', regex: /^\[系統\] 成功轉帳 (.*) 綠寶石 給 (.*) \(目前擁有 (.*) 綠寶石\)/ },
+                { name: 'epayNegative', regex: new RegExp(`^\[系統\] 轉帳金額需為正數`) },
+                // /^[系統] 轉帳成功! (使用了 (d{1,3}(,d{3})*|d+) 村民錠, 剩餘 (d{1,3}(,d{3})*|d+) )/
+                { name: 'cpaySuccess', regex: /^\[系統\] 轉帳成功! \(使用了 (\d{1,3}(,\d{3})*|\d+) 村民錠, 剩餘 (\d{1,3}(,\d{3})*|\d+) \)$/ },
+                { name: 'cpayDifferentName', regex: new RegExp(`^\[系統\] 兩次所輸入的玩家名稱不一致!`) },
+                { name: 'cpayNoMoney', regex: /^\[系統\] 村民錠不足, 尚需 (\d{1,3}(,\d{3})*|\d+) 村民錠\. \(目前剩餘 (\d{1,3}(,\d{3})*|\d+) \)/ },
+                { name: 'generalCannotSend', regex: new RegExp(`^\[系統\] 無法傳送訊息`) },
+                // { name: 'epayInstructions', regex: new RegExp(`^指令格式: /pay 玩家ID 綠寶石金額`), handler: '_handleEpayInstructions' }
+            ];
+
+            const errorMap = {
+                'epayProcessing': '伺服器忙碌中，請稍後再試',
+                'epayNoMoney': '綠寶石不足',
+                'epayNotSamePlace': '玩家不在同一分流或 ID 錯誤',
+                'epayNegative': '金額必須為正數',
+                'cpayDifferentName': '兩次輸入的名稱不一致',
+                'cpayNoMoney': '村民錠不足',
+                'generalCannotSend': '系統限制，無法傳送訊息'
+            };
+
+            const successEvents = ['epaySuccess', 'cpaySuccess'];
+            const failureEvents = ['epayNoMoney', 'epayNotSamePlace', 'epayNegative', 'cpayDifferentName', 'cpayNoMoney', 'generalCannotSend', 'epayProcessing'];
+            const handlers = {};
+
+            for (const { name, regex } of chatPatterns) {
+                this.bot.addChatPattern(name, regex);
+
+                if (successEvents.includes(name)) {
+                    handlers[name] = (matches) => onSuccess(matches);
+                } else {
+                    handlers[name] = (matches) => onFailure(name, matches);
+                }
+            }
+
+            successEvents.forEach(e => this.bot.once(`chat:${e}`, handlers[e]));
+            failureEvents.forEach(e => this.bot.once(`chat:${e}`, handlers[e]));
+
+            this.bot.chat(`/pay ${target} ${amount}`);
+        });
     }
 }
 
