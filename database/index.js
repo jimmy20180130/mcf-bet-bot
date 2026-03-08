@@ -1,15 +1,14 @@
-const Database = require('better-sqlite3');
+const { Database } = require('bun:sqlite');
 const db = new Database('database.db');
 
-db.pragma('foreign_keys = ON');
-
+db.run('PRAGMA foreign_keys = ON;');
 const schema = `
 CREATE TABLE IF NOT EXISTS ranks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     displayName TEXT NOT NULL,
     prefix TEXT,
     daily TEXT DEFAULT '{}',
-    bonusodds TEXT DEFAULT '{}',
+    bonusodds REAL DEFAULT 0,
     isAdmin INTEGER DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -47,6 +46,8 @@ CREATE TABLE IF NOT EXISTS betRecords (
 );
 `;
 
-db.exec(schema);
+db.run(schema);
+
+db.query(`INSERT OR IGNORE INTO ranks (id, displayName, prefix, daily, bonusodds, isAdmin) VALUES (1, '未綁定', '', '{"e":0, "c":0}', 0, 0)`).run();
 
 module.exports = db;

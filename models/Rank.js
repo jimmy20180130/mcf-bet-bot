@@ -2,7 +2,7 @@ const db = require('../database/index');
 
 class Rank {
     static create({ displayName, prefix, daily = {}, bonusodds = {}, isAdmin = 0 }) {
-        const stmt = db.prepare(`
+        const stmt = db.query(`
             INSERT INTO ranks (displayName, prefix, daily, bonusodds, isAdmin)
             VALUES (?, ?, ?, ?, ?)
         `);
@@ -10,7 +10,7 @@ class Rank {
     }
 
     static getById(id) {
-        const rank = db.prepare('SELECT * FROM ranks WHERE id = ?').get(id);
+        const rank = db.query('SELECT * FROM ranks WHERE id = ?').get(id);
         if (rank) {
             rank.daily = JSON.parse(rank.daily);
             rank.bonusodds = JSON.parse(rank.bonusodds);
@@ -19,7 +19,7 @@ class Rank {
     }
 
     static getAll() {
-        return db.prepare('SELECT * FROM ranks').all().map(r => ({
+        return db.query('SELECT * FROM ranks').all().map(r => ({
             ...r,
             daily: JSON.parse(r.daily),
             bonusodds: JSON.parse(r.bonusodds)

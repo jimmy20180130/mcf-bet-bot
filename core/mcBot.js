@@ -26,7 +26,7 @@ class mcBot {
         this.bot.BetService = new BetService(this.bot);
         this.bot.ErrorHandler = new ErrorHandler(this.bot);
         this.bot.MinecraftDataService = new MinecraftDataService();
-        this.bot.depositMode = []; //bot.depositMode = [{playerid: sender, expiresAt: Date.now() + 20000}];
+        this.bot.depositMode = []; // bot.depositMode = [{playerid: sender, expiresAt: Date.now() + 20000}];
         this.bot.on('login', this._onLogin.bind(this));
         this.bot.on('spawn', this._onSpawn.bind(this));
         this.bot.on('message', this._onMessage.bind(this));
