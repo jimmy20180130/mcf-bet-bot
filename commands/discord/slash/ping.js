@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -11,12 +11,22 @@ module.exports = {
             'zh-TW': '查看機器人延遲'
         }),
     async execute(interaction) {
-        const sent = await interaction.reply({ content: 'Pinging...', fetchReply: true });
-        const latency = sent.createdTimestamp - interaction.createdTimestamp;
+        const response = await interaction.reply({
+            content: 'Pinging...',
+            flags: [MessageFlags.Ephemeral],
+            withResponse: true
+        });
+
+        const latency = response.resource.message.createdTimestamp - interaction.createdTimestamp;
+        const apiLatency = Math.round(interaction.client.ws.ping);
+
         const replyContent = {
-            'en-US': `Pong! Latency is ${latency}ms.`,
-            'zh-TW': `Pong！延遲為 ${latency}ms。`
+            'en-US': `Pong! Bot Latency is ${latency}ms. API Latency is ${apiLatency}ms.`,
+            'zh-TW': `Pong！機器人延遲為 ${latency}ms，API 延遲為 ${apiLatency}ms。`
         };
-        await interaction.editReply({ content: replyContent[interaction.locale] || replyContent['en-US'] });
+
+        await interaction.editReply({
+            content: replyContent[interaction.locale] || replyContent['en-US']
+        });
     },
 };
