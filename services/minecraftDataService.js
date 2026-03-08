@@ -130,3 +130,5 @@ class MinecraftDataService {
         return null;
     }
 }
+
+module.exports = MinecraftDataService;
