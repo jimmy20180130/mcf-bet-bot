@@ -1,24 +1,24 @@
 const db = require('../database/index');
 
 class signIn {
-    static hasCheckedInToday(uuid) {
+    static hasCheckedInToday(playerid) {
         const result = db.query(`
             SELECT id FROM signInRecords 
-            WHERE playeruuid = ? AND date(createdAt) = date('now', 'localtime')
-        `).get(uuid);
+            WHERE playerid = ? AND date(createdAt) = date('now', 'localtime')
+        `).get(playerid);
         return !!result;
     }
 
-    static record(uuid, reward) {
+    static record(playerid, reward) {
         const stmt = db.query(`
-            INSERT INTO signInRecords (playeruuid, rewardAmount)
+            INSERT INTO signInRecords (playerid, rewardAmount)
             VALUES (?, ?)
         `);
-        return stmt.run(uuid, reward);
+        return stmt.run(playerid, reward);
     }
 
-    static getCount(uuid) {
-        return db.query('SELECT COUNT(*) as total FROM signInRecords WHERE playeruuid = ?').get(uuid).total;
+    static getCount(playerid) {
+        return db.query('SELECT COUNT(*) as total FROM signInRecords WHERE playerid = ?').get(playerid).total;
     }
 }
 

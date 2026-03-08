@@ -66,12 +66,12 @@ class User {
         return stmt.run(playeruuid, playerid, discordid, rankId, eWallet, cWallet);
     }
 
-    static updateWallet(uuid, { eChange = 0, cChange = 0 }) {
+    static updateWallet(playerId, { eChange = 0, cChange = 0 }) {
         const stmt = db.query(`
             UPDATE users SET eWallet = eWallet + ?, cWallet = cWallet + ?
-            WHERE playeruuid = ?
+            WHERE playerid = ?
         `);
-        return stmt.run(eChange, cChange, uuid);
+        return stmt.run(eChange, cChange, playerId);
     }
 }
 
