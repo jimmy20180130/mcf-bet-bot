@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS signInRecords (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     playeruuid TEXT NOT NULL,
-    rewardAmount REAL,
+    rewardAmount TEXT NOT NULL,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (playeruuid) REFERENCES users(playeruuid) ON DELETE CASCADE
 );
