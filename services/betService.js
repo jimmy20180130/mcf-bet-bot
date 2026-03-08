@@ -1,12 +1,24 @@
 const Vec3 = require('vec3');
 const Item = require('prismarine-item');
+const BetRecord = require('../models/BetRecord');
+const User = require('../models/User');
+const Rank = require('../models/Rank');
+const Decimal = require('decimal.js');
 
 class BetService {
     /**
         @param {mineflayer.Bot} bot
     **/
-    constructor(bot) {
+    constructor(bot, betConfig=null) {
         this.bot = bot;
+        this.betConfig = betConfig || {
+            eodds: 1.85,
+            codds: 1.85,
+            emin: 1,
+            emax: 1000000,
+            cmin: 1,
+            cmax: 10
+        };
         this.queue = [];
         this.isProcessing = false;
     }
@@ -28,12 +40,44 @@ class BetService {
 
         try {
             this.bot.logger.info(`準備處理任務: ${playerid} ${amount} ${currency} (剩餘任務: ${this.queue.length})`);
-            const result = await this._performBet(playerid, amount, currency);
+
+            let playeruuid = await this.bot.MinecraftDataService.getPlayerId(playerid);
+            if (!playeruuid) {
+                const user = User.getByPlayerId(playerid);
+                if (user) playeruuid = user.playeruuid;
+            }
+
+            if (!playeruuid) return;
+
+            // create user if not exist
+            User.create({ playeruuid, playerid });
+
+            let odds = currency == 'emerald' ? new Decimal(this.betConfig.eodds) : new Decimal(this.betConfig.codds);
+            let bonusodds = new Decimal(User.getRankSettings(playerid)?.bonusodds || 0);
+            let payout = odds.plus(bonusodds).times(amount);
+
+            const result = await this._performBet(playerid, amount, currency, odds, bonusodds);
+
+            BetRecord.create({
+                playeruuid,
+                playerid,
+                currency,
+                amount,
+                result: payout.toNumber(),
+                odds: odds.toNumber(),
+                bonusodds: bonusodds.toNumber()
+            });
+
             resolve(result);
 
         } catch (err) {
-            this.bot.logger.error(`任務失敗: ${err.error.message}`);
-            reject(err);
+            if (err.errType) {
+                this.bot.logger.error(`任務失敗 (類型: ${err.errType}): ${err.error.message}`);
+                reject(err);
+            } else {
+                this.bot.logger.error(`任務失敗: ${err.message}`);
+                reject({ success: false, target: playerid, amount, currency, errType: 'unknown', error: new Error(err.message) });
+            }
 
         } finally {
             await new Promise(r => setTimeout(r, 500));
@@ -42,7 +86,7 @@ class BetService {
         }
     }
 
-    _performBet(target, amount, currency) {
+    _performBet(target, amount, currency, odds, bonusodds) {
         return new Promise(async (resolve, reject) => {
             try {
                 await this._clickRedstoneDust()
@@ -73,10 +117,13 @@ class BetService {
             }
 
             if (spawnResult.data === 'win') {
-                this.bot.chat(`${target} win ${amount} ${currency}`);
+                let totalOdds = odds.plus(bonusodds);
+                let payout = totalOdds.times(amount);
+
+                this.bot.chat(`${target} win ${payout.toNumber()} ${currency}`);
 
                 try {
-                    await this.bot.PayService.pay(target, amount, currency)
+                    await this.bot.PayService.pay(target, payout.toNumber(), currency)
                 } catch (err) {
                     reject({ success: false, target, amount, currency, errType: 'pay', error: err.error });
                     return;
