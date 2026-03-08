@@ -5,6 +5,7 @@ const rl = require('readline');
 const Logger = require('./utils/logger');
 const logger = new Logger('Core', true);
 const config = toml.parse(fs.readFileSync('./config.toml', 'utf-8'));
+const AuthService = require('./services/authService')
 
 // 讓使用者可以在 console 輸入指令來控制 bot，例如輸入 "stop" 來停止所有 bot
 const consoleInterface = rl.createInterface({
@@ -13,6 +14,23 @@ const consoleInterface = rl.createInterface({
 });
 
 const mcBots = [];
+
+async function start() {
+    for (let i = 0; i < config.bots.length; i++) {
+        const mc = new mcBot(config.bots[i], i);
+        const token = config.bots[i].key
+        const authService = new AuthService(token, mc)
+        const authResult = await authService.authenticate()
+        if (authResult) {
+            authService.mcClient.start()
+            mcBots.push(authService);
+        } else {
+            logger.warn(`auth failed for bot ${i+1}`)
+        }
+    }
+}
+
+start()
 
 consoleInterface.on('line', (input) => {
     const message = input.trim().toLowerCase();
@@ -62,30 +80,24 @@ consoleInterface.on('line', (input) => {
         const [botIndexStr, ...messageParts] = message.split(':');
         const botIndex = parseInt(botIndexStr);
         const messageToSend = messageParts.join('').trim();
-        if (!mcBots[botIndex-1]) {
+        if (!mcBots[botIndex - 1]) {
             logger.warn(`無效的 bot 索引: ${botIndex}`);
             return;
         } else if (!messageToSend) {
             logger.warn('請輸入要發送的訊息');
             return;
         } else {
-            mcBots[botIndex-1]?.bot?.chat(messageToSend);
+            mcBots[botIndex - 1]?.bot?.chat(messageToSend);
         }
     }
 });
 
-for (let i = 0; i < config.bots.length; i++) {
-    const mc = new mcBot(config.bots[i], i);
-    mc.start();
-    mcBots.push(mc);
-}
-
 // if mcbot triggered end event, restart it after 5 seconds
 setInterval(() => {
     mcBots.forEach((mc, index) => {
-        if (!mc.bot && !mc.stop) {
-            logger.warn(`[${mc.options.username}] 連線已斷開，正在嘗試重新連線...`);
-            mc.start();
+        if (!mc.mcClient.bot && !mc.mcClient.stop) {
+            logger.warn(`[${mc.mcClient.options.username}] 連線已斷開，正在嘗試重新連線...`);
+            mc.mcClient.start();
         }
     });
 }, 5000);
