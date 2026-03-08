@@ -1,5 +1,5 @@
 const { Database } = require('bun:sqlite');
-const db = new Database('database.db');
+const db = new Database('./data/database.db');
 
 db.run('PRAGMA foreign_keys = ON;');
 const schema = `
