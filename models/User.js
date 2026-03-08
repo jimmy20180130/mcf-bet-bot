@@ -33,7 +33,7 @@ class User {
                 FROM users u
                 JOIN ranks r ON u.rankId = r.id
                 WHERE u.playeruuid = ?
-            `).get(uuid);
+            `).get(playerData);
         } else {
             row = db.prepare(`
                 SELECT
