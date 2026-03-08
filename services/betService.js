@@ -2,13 +2,14 @@ const Vec3 = require('vec3');
 const Item = require('prismarine-item');
 const BetRecord = require('../models/BetRecord');
 const User = require('../models/User');
+const PlayerStats = require('../models/PlayerStats');
 const Decimal = require('decimal.js');
 
 class BetService {
     /**
         @param {mineflayer.Bot} bot
     **/
-    constructor(bot, betConfig=null) {
+    constructor(bot, betConfig = null) {
         this.bot = bot;
         this.betConfig = betConfig || {
             eodds: 1.85,
@@ -51,18 +52,22 @@ class BetService {
             // create user if not exist
             User.create({ playeruuid, playerid });
 
+            const stats = PlayerStats.get(playeruuid, this.bot._client.uuid.replace(/-/g, '').toLowerCase());
             let odds = currency == 'emerald' ? new Decimal(this.betConfig.eodds) : new Decimal(this.betConfig.codds);
-            let bonusodds = new Decimal(User.getRankSettings(playerid)?.bonusodds || 0);
-            let payout = odds.plus(bonusodds).times(amount);
+            let bonusodds = new Decimal(stats?.bonusodds || 0);
+            let payout = odds.plus(bonusodds).times(amount).floor();
 
             const result = await this._performBet(playerid, amount, currency, odds, bonusodds);
 
+            const recordResult = result.outcome === 'win' ? payout.toNumber() : 0;
+
             BetRecord.create({
                 playeruuid,
+                bot: this.bot._client.uuid.replace(/-/g, '').toLowerCase(),
                 playerid,
                 currency,
                 amount,
-                result: payout.toNumber(),
+                result: recordResult,
                 odds: odds.toNumber(),
                 bonusodds: bonusodds.toNumber()
             });
@@ -117,7 +122,7 @@ class BetService {
 
             if (spawnResult.data === 'win') {
                 let totalOdds = odds.plus(bonusodds);
-                let payout = totalOdds.times(amount);
+                let payout = totalOdds.times(amount).floor();
 
                 this.bot.chat(`${target} win ${payout.toNumber()} ${currency}`);
 
@@ -128,11 +133,11 @@ class BetService {
                     return;
                 }
 
-                resolve({ success: true, target, amount, currency });
+                resolve({ success: true, target, amount, currency, outcome: 'win' });
 
             } else if (spawnResult.data === 'lose') {
                 this.bot.chat(`${target} lose ${amount} ${currency}`);
-                resolve({ success: true, target, amount, currency });
+                resolve({ success: true, target, amount, currency, outcome: 'lose' });
             }
         });
     }
