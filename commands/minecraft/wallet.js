@@ -1,21 +1,38 @@
 // wallet
 const User = require('../../models/User');
+const PlayerStats = require('../../models/PlayerStats');
 
 async function execute(bot, command, sender, args) {
-    const userEWallet = User.getByPlayerId(sender)?.eWallet || 0;
-    const userCWallet = User.getByPlayerId(sender)?.cWallet || 0;
+    const user = User.getByPlayerId(sender);
+    
+    if (!user) {
+        bot.logger.error(`找不到玩家 ${sender} 的使用者資料`);
+        return;
+    }
 
-    bot.logger.debug(`${sender} eWallet: ${userEWallet}, cWallet: ${userCWallet}`);
+    const botName = bot._client.uuid.replace(/-/g, '').toLowerCase();
+    const stats = PlayerStats.get(user.playeruuid, botName);
+
+    if (!stats) {
+        bot.chat(`/m ${sender} 你的錢包目前沒有可領取的餘額`);
+        return;
+    }
+
+    const userEWallet = stats.emerald || 0;
+    const userCWallet = stats.coin || 0;
+
+    bot.logger.debug(`${sender} 在 ${botName} 的 eWallet: ${userEWallet}, cWallet: ${userCWallet}`);
 
     if (userEWallet > 0) {
         await bot.PayService.pay(sender, userEWallet, 'emerald')
             .then(() => {
                 bot.logger.debug(`${sender} 已成功領取 ${userEWallet} 綠寶石`);
-                User.updateWallet(sender, { eChange: -userEWallet });
+                PlayerStats.updateWallet(user.playeruuid, botName, { eChange: -userEWallet });
             })
             .catch((err) => {
-                bot.chat(`/m ${sender} 領取綠寶石失敗: ${err.error.message}`);
-                bot.logger.error(`${sender} 領取綠寶石失敗: ${err.error.message}`);
+                const errorMsg = err.error?.message || '未知錯誤';
+                bot.chat(`/m ${sender} 領取綠寶石失敗: ${errorMsg}`);
+                bot.logger.error(`${sender} 領取綠寶石失敗: ${errorMsg}`);
             });
     }
 
@@ -23,12 +40,17 @@ async function execute(bot, command, sender, args) {
         await bot.PayService.pay(sender, userCWallet, 'coin')
             .then(() => {
                 bot.logger.debug(`${sender} 已成功領取 ${userCWallet} 村民錠`);
-                User.updateWallet(sender, { cChange: -userCWallet });
+                PlayerStats.updateWallet(user.playeruuid, botName, { cChange: -userCWallet });
             })
             .catch((err) => {
-                bot.chat(`/m ${sender} 領取村民錠失敗: ${err.error.message}`);
-                bot.logger.error(`${sender} 領取村民錠失敗: ${err.error.message}`);
+                const errorMsg = err.error?.message || '未知錯誤';
+                bot.chat(`/m ${sender} 領取村民錠失敗: ${errorMsg}`);
+                bot.logger.error(`${sender} 領取村民錠失敗: ${errorMsg}`);
             });
+    }
+
+    if (userEWallet <= 0 && userCWallet <= 0) {
+        bot.chat(`/m ${sender} 你的錢包目前沒有可領取的餘額。`);
     }
 }
 

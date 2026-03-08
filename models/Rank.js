@@ -17,14 +17,6 @@ class Rank {
         }
         return rank;
     }
-
-    static getAll() {
-        return db.query('SELECT * FROM ranks').all().map(r => ({
-            ...r,
-            daily: JSON.parse(r.daily),
-            bonusodds: JSON.parse(r.bonusodds)
-        }));
-    }
 }
 
 module.exports = Rank;
