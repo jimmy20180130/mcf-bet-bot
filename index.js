@@ -1,4 +1,5 @@
 const mcBot = require('./core/mcBot');
+const DcBot = require('./core/dcBot');
 const toml = require('smol-toml');
 const fs = require('fs');
 const rl = require('readline');
@@ -14,8 +15,12 @@ const consoleInterface = rl.createInterface({
 });
 
 const mcBots = [];
+const dcBot = new DcBot();
 
 async function start() {
+    // 啟動 Discord Bot
+    await dcBot.start();
+
     for (let i = 0; i < config.bots.length; i++) {
         const mc = new mcBot(config.bots[i], i);
         const token = config.bots[i].key
