@@ -37,7 +37,6 @@ class DcBot {
             await this._loadInteractions();
 
             this._setupEvents();
-
             const botConfig = this.config.discord;
             if (!botConfig || !botConfig.discordBotToken) {
                 throw new Error('找不到 Discord Bot Token');
@@ -57,7 +56,7 @@ class DcBot {
     }
 
     async _loadSlashCommands() {
-        const commandsPath = './commands/discord/slash';
+        const commandsPath = path.join(__dirname, '../commands/discord/slash');
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
         for (const file of commandFiles) {
@@ -79,7 +78,7 @@ class DcBot {
     }
 
     async _loadInteractions() {
-        const interactionsPath = './commands/discord/interactions';
+        const interactionsPath = path.join(__dirname, '../commands/discord/interactions');
         const interactionFiles = fs.readdirSync(interactionsPath).filter(file => file.endsWith('.js'));
 
         for (const file of interactionFiles) {
