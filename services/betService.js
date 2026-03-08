@@ -2,7 +2,6 @@ const Vec3 = require('vec3');
 const Item = require('prismarine-item');
 const BetRecord = require('../models/BetRecord');
 const User = require('../models/User');
-const Rank = require('../models/Rank');
 const Decimal = require('decimal.js');
 
 class BetService {
