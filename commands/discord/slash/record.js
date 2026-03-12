@@ -2,7 +2,8 @@ const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js'
 const BetRecord = require('../../../models/BetRecord');
 const User = require('../../../models/User');
 const fs = require('fs');
-const toml = require('smol-toml')
+const toml = require('smol-toml');
+const minecraftDataService = require('../../../services/minecraftDataService');
 
 function parseDate(dateStr) {
     if (!dateStr) return null;
@@ -229,10 +230,10 @@ module.exports = {
         } else if (focusedOption.name === 'bot') {
             const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
 
-            const choices = config.bots.map(bot => ({
-                botid: bot.username,
+            const choices = await Promise.all(config.bots.map(async bot => ({
+                botid: await minecraftDataService.getPlayerId(bot.uuid) || bot.username,
                 botuuid: bot.uuid
-            })).filter(bot => bot.botid.includes(focusedValue));
+            }))).then(results => results.filter(bot => bot.botid.includes(focusedValue)));
 
             await interaction.respond(
                 choices.map(choice => ({
@@ -295,7 +296,7 @@ module.exports = {
 
         let botDisplayName = '所有機器人';
         if (botUuid) {
-            const botInfo = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8')).bots.find(bot => bot.uuid === botUuid);
+            const botInfo = await minecraftDataService.getPlayerId(botUuid) || config.bots.find(b => b.uuid === botUuid);
             botDisplayName = botInfo ? botInfo.username : '未知機器人';
         }
 
