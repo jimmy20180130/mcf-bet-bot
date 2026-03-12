@@ -3,77 +3,77 @@ class Logger {
         this.logs = [];
         this.debugMode = debugMode;
         this.prefix = prefix;
+        this.levels = {
+            INFO: { color: '\x1b[36m', label: 'INFO' },
+            WARN: { color: '\x1b[33m', label: 'WARN', bg: '\x1b[43m' },
+            ERROR: { color: '\x1b[31m', label: 'ERROR', bg: '\x1b[41m' },
+            DEBUG: { color: '\x1b[34m', label: 'DEBUG' }
+        };
     }
 
-    get count() {
-        return this.logs.length;
-    }
-
-    get entries() {
-        return this.logs;
-    }
-
-    clear() {
-        this.logs = [];
-    }
+    get count() { return this.logs.length; }
+    get entries() { return this.logs; }
+    clear() { this.logs = []; }
 
     _formatTimestamp(date) {
         const pad = (n) => String(n).padStart(2, '0');
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     }
 
-    log(message) {
-        const timestamp = this._formatTimestamp(new Date());
-        this.logs.push({ message, timestamp });
-        console.log(`[${timestamp}] [${this.prefix}] \x1b[36m[INFO]\x1b[0m ${message}`);
-    }
-
-    info(message) {
-        this.log(message);
+    _formatMessage(args) {
+        return args.map(arg => {
+            if (arg instanceof Error) {
+                return arg.stack || arg.message;
+            } else if (typeof arg === 'object' && arg !== null) {
+                try {
+                    return JSON.stringify(arg, null, 2);
+                } catch (e) {
+                    return '[Unserializable Object]';
+                }
+            } else {
+                return String(arg);
+            }
+        }).join(' ');
     }
 
     _getFileInfo(stack) {
-        const match = stack.split('\n')[2].match(/\((.+?):(\d+):\d+\)$/);
+        const lines = stack.split('\n');
+        const targetLine = lines[3] || lines[2];
+        const match = targetLine.match(/\((.+?):(\d+):\d+\)$/) || targetLine.match(/at (.+?):(\d+):\d+$/);
+        
         if (match) {
             const [, filePath, lineNumber] = match;
-            return `\x1b[2m(${filePath.split(/[/\\]/).pop()}:${lineNumber})\x1b[0m`;
+            const fileName = filePath.split(/[/\\]/).pop();
+            return `\x1b[2m(${fileName}:${lineNumber})\x1b[0m`;
         }
         return '';
     }
 
-    warn(message) {
+    _print(levelKey, ...args) {
         const timestamp = this._formatTimestamp(new Date());
-        this.logs.push({ message, timestamp });
+        const message = this._formatMessage(args);
+        const level = this.levels[levelKey];
         const fileInfo = this._getFileInfo(new Error().stack || '');
-        console.log(`[${timestamp}] [${this.prefix}] \x1b[33m[WARN]\x1b[0m \x1b[43m${message}\x1b[0m ${fileInfo}`);
+
+        this.logs.push({ level: levelKey, message, timestamp });
+
+        const colorTag = `${level.color}[${level.label}]\x1b[0m`;
+        const content = level.bg ? `${level.bg}${message}\x1b[0m` : message;
+        
+        console.log(`[${timestamp}] [${this.prefix}] ${colorTag} ${content} ${fileInfo}`);
     }
 
-    error(...args) {
-        const timestamp = this._formatTimestamp(new Date());
-        const stack = new Error().stack || '';
-        const message = args.map(arg => {
-            if (arg instanceof Error) {
-                return `${arg.message}\n${arg.stack}`;
-            } else if (typeof arg === 'object') {
-                return JSON.stringify(arg, null, 2);
-            } else {
-                return arg;
-            }
-        }).join(' ');
+    log(...args) { this._print('INFO', ...args); }
+    info(...args) { this._print('INFO', ...args); }
+    
+    warn(...args) { this._print('WARN', ...args); }
+    
+    error(...args) { this._print('ERROR', ...args); }
 
-        this.logs.push({ message, timestamp });
-        const fileInfo = this._getFileInfo(stack);
-        console.log(`[${timestamp}] [${this.prefix}] \x1b[31m[ERROR]\x1b[0m \x1b[41m${message}\x1b[0m ${fileInfo}`);
-    }
-
-    debug(message) {
-        const timestamp = this._formatTimestamp(new Date());
-        this.logs.push({ message, timestamp });
-
-        if (!this.debugMode) return;
-
-        const fileInfo = this._getFileInfo(new Error().stack || '');
-        console.log(`[${timestamp}] [${this.prefix}] \x1b[34m[DEBUG]\x1b[0m ${message} ${fileInfo}`);
+    debug(...args) {
+        if (this.debugMode) {
+            this._print('DEBUG', ...args);
+        }
     }
 }
 
