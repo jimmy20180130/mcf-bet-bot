@@ -131,4 +131,4 @@ class MinecraftDataService {
     }
 }
 
-module.exports = MinecraftDataService;
+module.exports = new MinecraftDataService();
