@@ -7,7 +7,7 @@ const schema = `
 CREATE TABLE IF NOT EXISTS ranks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     displayName TEXT NOT NULL,
-    prefix TEXT,
+    discordid TEXT DEFAULT '',
     daily TEXT DEFAULT '{}',
     bonusodds REAL DEFAULT 0,
     bot TEXT NOT NULL,
@@ -81,8 +81,8 @@ const bots = config?.bots || [];
 
 for (const bot of bots) {
     db.query(`
-        INSERT OR IGNORE INTO ranks (id, displayName, prefix, daily, bonusodds, bot) 
-        VALUES (1, '未綁定', '', '{"e":0, "c":0}', 0, ?)
+        INSERT OR IGNORE INTO ranks (id, displayName, daily, bonusodds, bot) 
+        VALUES (1, '未綁定', '{"e":0, "c":0}', 0, ?)
     `).run(bot.uuid);
 }
 
