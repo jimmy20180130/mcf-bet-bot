@@ -34,6 +34,13 @@ class User {
         `);
         return stmt.run(playeruuid, playerid, discordid);
     }
+
+    static linkDiscord(playeruuid, discordid) {
+        const stmt = db.query(`
+            UPDATE users SET discordid = ? WHERE playeruuid = ?
+        `);
+        return stmt.run(discordid, playeruuid);
+    }
 }
 
 module.exports = User;

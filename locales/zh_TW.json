@@ -1,5 +1,10 @@
 {
 	"dc": {
+		"link": {
+			"invalidCode": "驗證碼無效或已過期",
+			"success": "成功綁定 Minecraft 帳號 {playerId} ({playerUuid})",
+			"linkFailed": "綁定時發生錯誤，請稍後再試"
+		},
 		"ping": {
 			"pinging": "Pinging...",
 			"result": "Pong！機器人延遲為 {latency}ms，API 延遲為 {apiLatency}ms。"
@@ -167,6 +172,10 @@
 			"noBalance": "/m {sender} 你的錢包目前沒有可領取的餘額。",
 			"emeraldFailed": "/m {sender} &c&l領取綠寶石失敗: {error}",
 			"coinFailed": "/m {sender} &c&l領取村民錠失敗: {error}"
+		},
+		"link": {
+			"alreadyLinked": "/m {sender} &c&l你已經綁定過了",
+			"getCode": "/m {sender} 您的驗證碼是 &6&l{code}&r&f，請在 1 小時內在 Discord 伺服器中使用 /link 指令綁定帳號"
 		}
 	},
 	"service": {
