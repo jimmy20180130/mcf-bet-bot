@@ -54,6 +54,15 @@ CREATE TABLE IF NOT EXISTS betRecords (
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (playeruuid) REFERENCES users(playeruuid) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS recordTemplates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ownerDiscordId TEXT NOT NULL,
+    name TEXT NOT NULL COLLATE NOCASE,
+    filters TEXT NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(ownerDiscordId, name)
+);
 `;
 
 db.run(schema);
