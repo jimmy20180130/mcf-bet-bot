@@ -7,9 +7,24 @@
 
 # 必填區域
 [general]
-key = "" # Bot 金鑰，可加入 Jimmy Bot 的伺服器並開啟客服單取得
-username = "mcf-bet-bot" # Bot 的代號，不一定要填實際的 Minecraft ID 或是電子郵件，僅能填英文和數字
-serverIP = "mcfallout.net" # 伺服器 IP，為了避免伺服器卡頓而造成 Bot 無法使用，故新增了此項設定
+whitelist = ["Jimmy4Real"] # 伺服器白名單玩家的 Minecraft ID，當機器人偵測到下注玩家不在白名單內時將不予接受下注，請填入 Minecraft ID 而非 UUID
+
+[discord]
 discordBotToken = "" # Discord Bot 的 token，可至 Discord 開法者頁面取得
 discordApplicationID = "" # Discord Bot 的 application id，可至 Discord 開法者頁面取得
+
+[[bots]]
+key = "" # Bot 金鑰，可加入 Jimmy Bot 的伺服器並開啟客服單取得
+username = "" # Bot 的代號，不一定要填實際的 Minecraft ID 或是電子郵件，僅能填英文和數字
+uuid = "" # Bot 的 Minecraft UUID (請移除 "-")
+serverIP = "mcfallout.net" # 伺服器 IP，為了避免伺服器卡頓而造成 Bot 無法使用，故新增了此項設定
 whitelist = ["Jimmy4Real"] # 白名單的 Minecraft 玩家的 ID
+betRecordChannelID = "" # 下注紀錄的 Discord 頻道 ID
+consoleChannelID = "" # Console 的 Discord 頻道 ID
+# 以下可不填，若不填則會使用預設值，可透過 discord 指令修改
+emax = 5000000 
+emin = 1
+cmax = 5000000
+cmin = 1
+eodds = 1.85
+codds = 1.85
