@@ -5,10 +5,8 @@ const BetService = require('../services/betService');
 const ErrorHandler = require('../services/ErrorHandler');
 const mcCommandHandler = require('../commands/minecraft/index');
 const MinecraftDataService = require('../services/minecraftDataService');
-const fs = require('fs');
-const toml = require('smol-toml');
+const { readConfig } = require('../services/configService');
 const { t } = require('../utils/i18n');
-const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
 
 class mcBot {
     constructor(options, index, dcBot) {
@@ -24,12 +22,30 @@ class mcBot {
         this.chatQueue = [];
     }
 
+    _getCurrentBotConfig() {
+        const config = readConfig();
+        return config?.bots?.[this.index] || null;
+    }
+
+    _getCurrentBetConfig() {
+        const botConfig = this._getCurrentBotConfig();
+
+        return {
+            eodds: Number(botConfig?.eodds ?? 1.85),
+            codds: Number(botConfig?.codds ?? 1.85),
+            emin: Number(botConfig?.emin ?? 1),
+            emax: Number(botConfig?.emax ?? 1000000),
+            cmin: Number(botConfig?.cmin ?? 1),
+            cmax: Number(botConfig?.cmax ?? 10)
+        };
+    }
+
     start() {
         this.bot = mineflayer.createBot(this.options);
         this.bot.logger = new Logger(`${this.options.username}`, true);
         this.bot.nick = this.options.username;
         this.bot.PayService = new PayService(this.bot);
-        this.bot.BetService = new BetService(this.bot);
+        this.bot.BetService = new BetService(this.bot, () => this._getCurrentBetConfig());
         this.bot.ErrorHandler = new ErrorHandler(this.bot);
         this.bot.MinecraftDataService = MinecraftDataService;
         this.bot.sendMsg = this.sendMsg.bind(this);
@@ -52,10 +68,13 @@ class mcBot {
     async _processChatQueue() {
         if (this.chatQueue.length === 0 || !this.bot) return;
         const message = this.chatQueue[0];
+        const botConfig = this._getCurrentBotConfig();
 
         try {
             this.bot.chat(message);
-            this.dcBot.sendMsg(config.bots[this.index].consoleChannelID, message);
+            if (botConfig?.consoleChannelID) {
+                this.dcBot.sendMsg(botConfig.consoleChannelID, message);
+            }
             await new Promise(resolve => setTimeout(resolve, 1000));
             this.chatQueue.shift();
             this._processChatQueue();
@@ -76,9 +95,12 @@ class mcBot {
     }
 
     _onMessage(message) {
+        const botConfig = this._getCurrentBotConfig();
         this.bot.logger.info(message.toAnsi());
         try {
-            this.dcBot.sendMsg(config.bots[this.index].consoleChannelID, message.toString());
+            if (botConfig?.consoleChannelID) {
+                this.dcBot.sendMsg(botConfig.consoleChannelID, message.toString());
+            }
         } catch (err) {
             this.bot.logger.error(`轉發訊息到 Discord 失敗: ${message.toAnsi()}，錯誤: ${err}`);
         }
@@ -171,9 +193,10 @@ class mcBot {
         await this.bot.BetService.addBet(sender, amount, 'emerald')
             .then(async (result) => {
                 // { success: true, target, amount, currency }
-                const botConfig = config.bots[this.index];
-
-                await this.dcBot.sendBetRecordEmbed(botConfig.betRecordChannelID, result.target, result.currency, result.amount, result.returnAmount, result.odds, result.bonusOdds, result.isWin, this.bot.username);
+                const botConfig = this._getCurrentBotConfig();
+                if (botConfig?.betRecordChannelID) {
+                    await this.dcBot.sendBetRecordEmbed(botConfig.betRecordChannelID, result.target, result.currency, result.amount, result.returnAmount, result.odds, result.bonusOdds, result.isWin, this.bot.username);
+                }
 
                 this.bot.logger.debug(`已完成下注紀錄: ${result.amount} ${result.currency} 來自: ${result.target}`);
             })
@@ -211,9 +234,10 @@ class mcBot {
         await this.bot.BetService.addBet(sender, amount, 'coin')
             .then(async (result) => {
                 // { success: true, target, amount, currency }
-                const botConfig = config.bots[this.index];
-
-                await this.dcBot.sendBetRecordEmbed(botConfig.betRecordChannelID, result.target, result.currency, result.amount, result.returnAmount, result.odds, result.bonusOdds, result.isWin, this.bot.username);
+                const botConfig = this._getCurrentBotConfig();
+                if (botConfig?.betRecordChannelID) {
+                    await this.dcBot.sendBetRecordEmbed(botConfig.betRecordChannelID, result.target, result.currency, result.amount, result.returnAmount, result.odds, result.bonusOdds, result.isWin, this.bot.username);
+                }
 
                 this.bot.logger.debug(`已完成下注紀錄: ${result.amount} ${result.currency} 來自: ${result.target}`);
             })

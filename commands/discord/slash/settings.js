@@ -1,8 +1,7 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const toml = require('smol-toml');
-const fs = require('fs');
 const User = require('../../../models/User');
 const minecraftDataService = require('../../../services/minecraftDataService');
+const { readConfig, writeConfig } = require('../../../services/configService');
 const { tForInteraction } = require('../../../utils/i18n');
 
 module.exports = {
@@ -204,7 +203,7 @@ module.exports = {
                 choices.map(choice => ({ name: choice.playerid, value: choice.playerid }))
             );
         } else if (focusedOption.name === 'bot') {
-            const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+            const config = readConfig();
 
             const choices = await Promise.all(config.bots.map(async bot => ({
                 botid: await minecraftDataService.getPlayerId(bot.uuid) || bot.username,
@@ -262,7 +261,7 @@ function getBot(config, botIdentifier) {
 
 async function betSettings(interaction, bot, emax, emin, cmax, cmin, eodds, codds) {
     try {
-        const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+        const config = readConfig();
         const targetBot = getBot(config, bot);
 
         if (emax !== null) targetBot.emax = Number(emax);
@@ -272,7 +271,7 @@ async function betSettings(interaction, bot, emax, emin, cmax, cmin, eodds, codd
         if (eodds !== null) targetBot.eodds = Number(eodds);
         if (codds !== null) targetBot.codds = Number(codds);
 
-        fs.writeFileSync(`${process.cwd()}/config.toml`, toml.stringify(config));
+        writeConfig(config);
         await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.betUpdated') });
     } catch (error) {
         console.error(error);
@@ -282,13 +281,13 @@ async function betSettings(interaction, bot, emax, emin, cmax, cmin, eodds, codd
 
 async function channelSettings(interaction, bot, betChannel, consoleChannel) {
     try {
-        const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+        const config = readConfig();
         const targetBot = getBot(config, bot);
 
         if (betChannel !== null) targetBot.betRecordChannelID = String(betChannel);
         if (consoleChannel !== null) targetBot.consoleChannelID = String(consoleChannel);
 
-        fs.writeFileSync(`${process.cwd()}/config.toml`, toml.stringify(config));
+        writeConfig(config);
         await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.channelUpdated') });
     } catch (error) {
         console.error(error);
@@ -298,7 +297,7 @@ async function channelSettings(interaction, bot, betChannel, consoleChannel) {
 
 async function whitelistSettings(interaction, action, playerName, bot) {
     try {
-        const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+        const config = readConfig();
         const targetBot = getBot(config, bot);
 
         if (!targetBot.whitelist) targetBot.whitelist = [];
@@ -317,7 +316,7 @@ async function whitelistSettings(interaction, action, playerName, bot) {
                     return;
                 }
                 targetBot.whitelist.push(playerName);
-                fs.writeFileSync(`${process.cwd()}/config.toml`, toml.stringify(config));
+                writeConfig(config);
                 await interaction.editReply({
                     content: tForInteraction(interaction, 'dc.settings.whitelistAdded', { playerName })
                 });
@@ -335,7 +334,7 @@ async function whitelistSettings(interaction, action, playerName, bot) {
                     return;
                 }
                 targetBot.whitelist = targetBot.whitelist.filter(name => name !== playerName);
-                fs.writeFileSync(`${process.cwd()}/config.toml`, toml.stringify(config));
+                writeConfig(config);
                 await interaction.editReply({
                     content: tForInteraction(interaction, 'dc.settings.whitelistRemoved', { playerName })
                 });

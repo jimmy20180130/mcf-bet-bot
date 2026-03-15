@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const localeCache = new Map();
 const FALLBACK_LOCALE = 'zh_TW';
 
 function normalizeLocaleTag(locale) {
@@ -11,23 +10,16 @@ function normalizeLocaleTag(locale) {
 
 function loadLocale(locale) {
     const normalized = normalizeLocaleTag(locale);
-    if (localeCache.has(normalized)) {
-        return localeCache.get(normalized);
-    }
-
     const localePath = path.join(process.cwd(), 'locales', `${normalized}.json`);
-    let data = {};
+    if (!fs.existsSync(localePath)) {
+        return {};
+    }
 
     try {
-        if (fs.existsSync(localePath)) {
-            data = JSON.parse(fs.readFileSync(localePath, 'utf-8'));
-        }
+        return JSON.parse(fs.readFileSync(localePath, 'utf-8'));
     } catch {
-        data = {};
+        return {};
     }
-
-    localeCache.set(normalized, data);
-    return data;
 }
 
 function getByPath(obj, key) {

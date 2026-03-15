@@ -2,9 +2,8 @@ const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js'
 const BetRecord = require('../../../models/BetRecord');
 const RecordTemplate = require('../../../models/RecordTemplate');
 const User = require('../../../models/User');
-const fs = require('fs');
-const toml = require('smol-toml');
 const minecraftDataService = require('../../../services/minecraftDataService');
+const { readConfig } = require('../../../services/configService');
 const { tForInteraction } = require('../../../utils/i18n');
 
 function parseDate(dateStr) {
@@ -323,7 +322,7 @@ module.exports = {
         }
 
         if (focusedOption.name === 'bot') {
-            const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+            const config = readConfig();
             const choices = await Promise.all(config.bots.map(async bot => ({
                 botid: await minecraftDataService.getPlayerId(bot.uuid) || bot.username,
                 botuuid: bot.uuid
@@ -354,7 +353,7 @@ async function execute(interaction) {
         return interaction.editReply({ content: tForInteraction(interaction, 'dc.record.requesterNotLinked') });
     }
 
-    const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+    const config = readConfig();
     const isDiscordAdmin = interaction.member.permissions.has('Administrator');
 
     let hasPermission = false;

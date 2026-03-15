@@ -2,7 +2,7 @@ const { Client, Collection, Events, GatewayIntentBits, REST, Routes, EmbedBuilde
 const fs = require('fs');
 const path = require('path');
 const Logger = require('../utils/logger');
-const toml = require('smol-toml');
+const { readConfig } = require('../services/configService');
 const { t } = require('../utils/i18n');
 
 class DcBot {
@@ -10,7 +10,6 @@ class DcBot {
         this.logger = new Logger('Discord');
         this.commands = new Collection();
         this.interactions = new Collection();
-        this.config = this._loadConfig();
 
         this.client = new Client({
             intents: [
@@ -23,9 +22,7 @@ class DcBot {
 
     _loadConfig() {
         try {
-            const configPath = path.join(process.cwd(), 'config.toml');
-            const configContent = fs.readFileSync(configPath, 'utf-8');
-            return toml.parse(configContent);
+            return readConfig();
         } catch (error) {
             this.logger.warn('無法讀取設定檔:', error);
             throw error;
@@ -38,7 +35,7 @@ class DcBot {
             await this._loadInteractions();
 
             this._setupEvents();
-            const botConfig = this.config.discord;
+            const botConfig = this._loadConfig().discord;
             if (!botConfig || !botConfig.discordBotToken) {
                 throw new Error('找不到 Discord Bot Token');
             }

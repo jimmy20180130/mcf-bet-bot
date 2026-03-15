@@ -1,10 +1,9 @@
 const { ApplicationCommandType, ContextMenuCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
-const fs = require('fs');
-const toml = require('smol-toml');
 const BetRecord = require('../../../models/BetRecord');
 const RecordTemplate = require('../../../models/RecordTemplate');
 const User = require('../../../models/User');
 const minecraftDataService = require('../../../services/minecraftDataService');
+const { readConfig } = require('../../../services/configService');
 const { tForInteraction } = require('../../../utils/i18n');
 
 function parseDate(dateStr) {
@@ -60,7 +59,7 @@ module.exports = {
             return;
         }
 
-        const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+        const config = readConfig();
         const botUuid = template.filters?.bot || null;
 
         let botDisplayName = tForInteraction(interaction, 'dc.interaction.template.allBots');

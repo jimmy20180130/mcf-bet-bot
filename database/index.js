@@ -68,9 +68,15 @@ CREATE TABLE IF NOT EXISTS recordTemplates (
 db.run(schema);
 
 // init ranks
-const toml = require('smol-toml');
-const fs = require('fs');
-const config = fs.existsSync(`${process.cwd()}/config.toml`) ? toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8')) : null;
+const { readConfig } = require('../services/configService');
+let config = null;
+
+try {
+    config = readConfig();
+} catch (error) {
+    config = null;
+}
+
 const bots = config?.bots || [];
 
 for (const bot of bots) {

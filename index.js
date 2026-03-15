@@ -1,11 +1,9 @@
 const mcBot = require('./core/mcBot');
 const DcBot = require('./core/dcBot');
-const toml = require('smol-toml');
-const fs = require('fs');
 const rl = require('readline');
 const Logger = require('./utils/logger');
+const { readConfig } = require('./services/configService');
 const logger = new Logger('Core', true);
-const config = toml.parse(fs.readFileSync('./config.toml', 'utf-8'));
 const AuthService = require('./services/authService')
 
 const consoleInterface = rl.createInterface({
@@ -17,6 +15,7 @@ const mcBots = [];
 const dcBot = new DcBot();
 
 async function start() {
+    const config = readConfig();
     await dcBot.start();
 
     for (let i = 0; i < config.bots.length; i++) {

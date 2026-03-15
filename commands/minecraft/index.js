@@ -2,7 +2,7 @@ const fs = require('fs');
 const User = require('../../models/User');
 const PlayerStats = require('../../models/PlayerStats');
 const { t } = require('../../utils/i18n');
-const toml = require('smol-toml')
+const { readConfig } = require('../../services/configService');
 
 const commandFiles = fs.readdirSync('./commands/minecraft').filter(file => file.endsWith('.js'));
 const commands = new Map();
@@ -39,7 +39,7 @@ async function executeCommand(bot, sender, command, args) {
     const botName = bot._client.uuid.replace(/-/g, '').toLowerCase();
     PlayerStats.get(user.playeruuid, botName); 
 
-    const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+    const config = readConfig();
 
     let isAdmin = false;
     config.bots.forEach(botConfig => {

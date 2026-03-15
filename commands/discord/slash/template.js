@@ -1,8 +1,7 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const fs = require('fs');
-const toml = require('smol-toml');
 const minecraftDataService = require('../../../services/minecraftDataService');
 const RecordTemplate = require('../../../models/RecordTemplate');
+const { readConfig } = require('../../../services/configService');
 const { tForInteraction } = require('../../../utils/i18n');
 
 module.exports = {
@@ -255,7 +254,7 @@ async function autocomplete(interaction) {
     }
 
     if (focusedOption.name === 'bot') {
-        const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+        const config = readConfig();
 
         const choices = await Promise.all(config.bots.map(async bot => ({
             botid: await minecraftDataService.getPlayerId(bot.uuid) || bot.username,

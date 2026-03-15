@@ -10,9 +10,10 @@ class BetService {
     /**
         @param {mineflayer.Bot} bot
     **/
-    constructor(bot, betConfig = null) {
+    constructor(bot, betConfigProvider = null) {
         this.bot = bot;
-        this.betConfig = betConfig || {
+        this.betConfigProvider = typeof betConfigProvider === 'function' ? betConfigProvider : null;
+        this.defaultBetConfig = {
             eodds: 1.85,
             codds: 1.85,
             emin: 1,
@@ -22,6 +23,26 @@ class BetService {
         };
         this.queue = [];
         this.isProcessing = false;
+    }
+
+    _getCurrentBetConfig() {
+        if (!this.betConfigProvider) {
+            return { ...this.defaultBetConfig };
+        }
+
+        try {
+            const nextConfig = this.betConfigProvider();
+            return {
+                eodds: Number(nextConfig?.eodds ?? this.defaultBetConfig.eodds),
+                codds: Number(nextConfig?.codds ?? this.defaultBetConfig.codds),
+                emin: Number(nextConfig?.emin ?? this.defaultBetConfig.emin),
+                emax: Number(nextConfig?.emax ?? this.defaultBetConfig.emax),
+                cmin: Number(nextConfig?.cmin ?? this.defaultBetConfig.cmin),
+                cmax: Number(nextConfig?.cmax ?? this.defaultBetConfig.cmax)
+            };
+        } catch {
+            return { ...this.defaultBetConfig };
+        }
     }
 
     async addBet(playerid, amount, currency) {
@@ -54,7 +75,8 @@ class BetService {
             User.create({ playeruuid, playerid });
 
             const stats = PlayerStats.get(playeruuid, this.bot._client.uuid.replace(/-/g, '').toLowerCase());
-            let odds = currency == 'emerald' ? new Decimal(this.betConfig.eodds) : new Decimal(this.betConfig.codds);
+            const betConfig = this._getCurrentBetConfig();
+            let odds = currency == 'emerald' ? new Decimal(betConfig.eodds) : new Decimal(betConfig.codds);
             let bonusodds = new Decimal(stats?.bonusodds || 0);
             let payout = odds.plus(bonusodds).times(amount).floor();
 
