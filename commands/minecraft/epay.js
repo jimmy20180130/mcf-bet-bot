@@ -21,5 +21,6 @@ module.exports = {
     name: 'epay',
     description: '轉帳綠寶石給其他玩家',
     aliases: ['pay'],
+    requireAdmin: true,
     execute
 };

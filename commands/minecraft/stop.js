@@ -12,5 +12,6 @@ module.exports = {
     name: 'stop',
     description: '停止 Bot',
     aliases: ['reload', '停止'],
+    requireAdmin: true,
     execute
 }

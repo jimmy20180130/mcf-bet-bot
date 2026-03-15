@@ -12,5 +12,6 @@ module.exports = {
     name: 'restart',
     description: '重新啟動 Bot',
     aliases: ['reload', '重新啟動'],
+    requireAdmin: true,
     execute
 }

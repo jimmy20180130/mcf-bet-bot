@@ -21,5 +21,6 @@ module.exports = {
     name: 'cpay',
     description: '轉帳村民錠給其他玩家',
     aliases: [],
+    requireAdmin: true,
     execute
 };

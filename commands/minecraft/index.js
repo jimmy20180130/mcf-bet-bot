@@ -2,6 +2,7 @@ const fs = require('fs');
 const User = require('../../models/User');
 const PlayerStats = require('../../models/PlayerStats');
 const { t } = require('../../utils/i18n');
+const toml = require('smol-toml')
 
 const commandFiles = fs.readdirSync('./commands/minecraft').filter(file => file.endsWith('.js'));
 const commands = new Map();
@@ -38,7 +39,26 @@ async function executeCommand(bot, sender, command, args) {
     const botName = bot._client.uuid.replace(/-/g, '').toLowerCase();
     PlayerStats.get(user.playeruuid, botName); 
 
+    const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
+
+    let isAdmin = false;
+    config.bots.forEach(botConfig => {
+        if (botConfig.uuid === bot._client.uuid) {
+            if (botConfig.whitelist.includes(sender)) {
+                isAdmin = true;
+            }
+        }
+    });
+
+    if (config.general.whitelist.includes(sender)) {
+        isAdmin = true;
+    }
+
     try {
+        if (cmd.requireAdmin && !isAdmin) {
+            return;
+        }
+
         await cmd.execute(bot, command, sender, args);
     } catch (err) {
         bot.logger.error(`執行指令 ${command} 時發生錯誤: ${err.stack || err}`);
