@@ -8,7 +8,6 @@ const logger = new Logger('Core', true);
 const config = toml.parse(fs.readFileSync('./config.toml', 'utf-8'));
 const AuthService = require('./services/authService')
 
-// 讓使用者可以在 console 輸入指令來控制 bot，例如輸入 "stop" 來停止所有 bot
 const consoleInterface = rl.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -18,11 +17,10 @@ const mcBots = [];
 const dcBot = new DcBot();
 
 async function start() {
-    // 啟動 Discord Bot
     await dcBot.start();
 
     for (let i = 0; i < config.bots.length; i++) {
-        const mc = new mcBot(config.bots[i], i);
+        const mc = new mcBot(config.bots[i], i, dcBot);
         const token = config.bots[i].key
         const authService = new AuthService(token, mc)
         const authResult = await authService.authenticate()
@@ -73,10 +71,10 @@ consoleInterface.on('line', (input) => {
                 logger.warn(`未知指令: ${command}`);
         }
     } else {
-        // 如果訊息不包含冒號，則廣播給所有 bot
+        // 如果訊息不包含 ":"，則廣播給所有 bot
         if (!message.includes(':')) {
             for (let i = 0; i < mcBots.length; i++) {
-                mcBots[i]?.bot?.chat(message);
+                mcBots[i]?.bot?.sendMsg(message);
             }
             return;
         }

@@ -1,4 +1,4 @@
-const { Client, Collection, Events, GatewayIntentBits, REST, Routes } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, REST, Routes, EmbedBuilder, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const Logger = require('../utils/logger');
@@ -10,7 +10,7 @@ class DcBot {
         this.commands = new Collection();
         this.interactions = new Collection();
         this.config = this._loadConfig();
-        
+
         this.client = new Client({
             intents: [
                 GatewayIntentBits.Guilds,
@@ -104,6 +104,11 @@ class DcBot {
         this.commands.forEach(command => {
             commands.push(command.data.toJSON());
         });
+        this.interactions.forEach(interaction => {
+            if (interaction.data) {
+                commands.push(interaction.data.toJSON());
+            }
+        });
 
         const rest = new REST().setToken(token);
 
@@ -132,8 +137,10 @@ class DcBot {
     }
 
     async _handleInteraction(interaction) {
-        if (interaction.isChatInputCommand()) {
-            const command = this.commands.get(interaction.commandName);
+        if (interaction.isChatInputCommand() || interaction.isContextMenuCommand()) {
+            const command = interaction.isContextMenuCommand()
+                ? (this.interactions.get(interaction.commandName) || this.commands.get(interaction.commandName))
+                : (this.commands.get(interaction.commandName) || this.interactions.get(interaction.commandName));
 
             if (!command) {
                 this.logger.warn(`找不到指令 ${interaction.commandName}`);
@@ -167,7 +174,7 @@ class DcBot {
         } else if (interaction.isButton() || interaction.isModalSubmit() || interaction.isStringSelectMenu() || interaction.isUserSelectMenu() || interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu() || interaction.isMentionableSelectMenu()) {
             const customId = interaction.customId;
             let handler = this.interactions.get(customId);
-            
+
             if (!handler) {
                 // "record_123" => prefix = "record"
                 const prefix = customId.split('_')[0];
@@ -183,10 +190,67 @@ class DcBot {
             } catch (error) {
                 this.logger.warn(`執行互動處理時發生錯誤:`, error);
                 if (!interaction.replied && !interaction.deferred) {
-                     await interaction.reply({ content: '處理互動時發生錯誤！', ephemeral: true });
+                    await interaction.reply({ content: '處理互動時發生錯誤！', ephemeral: true });
                 }
             }
         }
+    }
+
+    async sendBetRecordEmbed(channelId, playerid, currency, amount, returnAmount, odds, bonusOdds, isWin, bot) {
+        const currencyIcon = currency === 'emerald' ? '💵' : '💴';
+        currency = currency == 'emerald' ? '綠寶石' : '村民錠';
+
+        const addCommas = (num) => {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        };
+
+        odds = (odds+bonusOdds).toFixed(2);
+
+        const winEmbed = new EmbedBuilder()
+            .setTitle(`${currencyIcon} [中獎] ${playerid}`)
+            .setDescription(`下注${currency} \`${addCommas(amount)}\` -> \`${addCommas(returnAmount)}\` (賠率=\`${odds}\`)`)
+            .setColor("#00ff1e")
+            .setFooter({
+                text: "Jimmy Bot",
+                iconURL: "https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024",
+            })
+            .setTimestamp();
+
+        const loseEmbed = new EmbedBuilder()
+            .setTitle(`${currencyIcon} [未中獎] ${playerid}`)
+            .setDescription(`下注${currency} \`${addCommas(amount)}\` -> \`0\` (賠率=\`${odds}\`)`)
+            .setColor("#ff0000")
+            .setFooter({
+                text: "Jimmy Bot",
+                iconURL: "https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024",
+            })
+            .setTimestamp();
+
+        const channel = await this.client.channels.fetch(channelId);
+        if (!channel) {
+            this.logger.warn(`找不到頻道 ID: ${channelId}`);
+            return;
+        }
+
+        if (isWin) {
+            await channel.send({ embeds: [winEmbed] });
+        } else {
+            await channel.send({ embeds: [loseEmbed] });
+        }
+
+    }
+
+    async sendMsg(channelId, message) {
+        const channel = await this.client.channels.fetch(channelId);
+        if (!channel) {
+            this.logger.warn(`找不到頻道 ID: ${channelId}`);
+            return;
+        }
+
+        const cleanMessage = message.replace(/\u001b\[[0-9;]*m/g, '');
+        if (cleanMessage == '' || !cleanMessage) return
+
+        await channel.send({ content: `\`${cleanMessage}\``, flags: MessageFlags.SuppressNotifications });
     }
 }
 

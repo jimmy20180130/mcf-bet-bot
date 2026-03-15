@@ -5,10 +5,14 @@ const BetService = require('../services/betService');
 const ErrorHandler = require('../services/ErrorHandler');
 const mcCommandHandler = require('../commands/minecraft/index');
 const MinecraftDataService = require('../services/minecraftDataService');
+const fs = require('fs');
+const toml = require('smol-toml');
+const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
 
 class mcBot {
-    constructor(options, index) {
+    constructor(options, index, dcBot) {
         this.bot = null;
+        this.dcBot = dcBot;
         this.index = index;
         this.options = {
             username: options.username || 'mcf-bet-bot',
@@ -16,6 +20,7 @@ class mcBot {
             auth: 'microsoft',
             version: '1.21.4'
         };
+        this.chatQueue = [];
     }
 
     start() {
@@ -26,6 +31,7 @@ class mcBot {
         this.bot.BetService = new BetService(this.bot);
         this.bot.ErrorHandler = new ErrorHandler(this.bot);
         this.bot.MinecraftDataService = MinecraftDataService;
+        this.bot.sendMsg = this.sendMsg.bind(this);
         this.bot.depositMode = []; // bot.depositMode = [{playerid: sender, expiresAt: Date.now() + 20000}];
         this.bot.on('login', this._onLogin.bind(this));
         this.bot.on('spawn', this._onSpawn.bind(this));
@@ -33,6 +39,30 @@ class mcBot {
         this.bot.on('error', this._onError.bind(this));
         this.bot.on('kicked', this._onKicked.bind(this));
         this.bot.on('end', this._onEnd.bind(this));
+    }
+
+    sendMsg(message) {
+        this.chatQueue.push(message);
+        if (this.chatQueue.length === 1) {
+            this._processChatQueue();
+        }
+    }
+
+    async _processChatQueue() {
+        if (this.chatQueue.length === 0 || !this.bot) return;
+        const message = this.chatQueue[0];
+
+        try {
+            this.bot.chat(message);
+            this.dcBot.sendMsg(config.bots[this.index].consoleChannelID, message);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            this.chatQueue.shift();
+            this._processChatQueue();
+        } catch (err) {
+            this.bot.logger.error(`發送訊息失敗: ${message}，錯誤: ${err}`);
+            this.chatQueue.shift();
+            this._processChatQueue();
+        }
     }
 
     _onLogin() {
@@ -46,6 +76,11 @@ class mcBot {
 
     _onMessage(message) {
         this.bot.logger.info(message.toAnsi());
+        try {
+            this.dcBot.sendMsg(config.bots[this.index].consoleChannelID, message.toString());
+        } catch (err) {
+            this.bot.logger.error(`轉發訊息到 Discord 失敗: ${message.toAnsi()}，錯誤: ${err}`);
+        }
     }
 
     _onError(err) {
@@ -133,12 +168,27 @@ class mcBot {
         }
 
         await this.bot.BetService.addBet(sender, amount, 'emerald')
-            .then((result) => {
+            .then(async (result) => {
                 // { success: true, target, amount, currency }
+                const botConfig = config.bots[this.index];
+
+                await this.dcBot.sendBetRecordEmbed(botConfig.betRecordChannelID, result.target, result.currency, result.amount, result.returnAmount, result.odds, result.bonusOdds, result.isWin, this.bot.username);
+
                 this.bot.logger.debug(`已完成下注紀錄: ${result.amount} ${result.currency} 來自: ${result.target}`);
             })
             .catch(async (err) => {
                 // { success: false, target, amount, currency, errType: 'spawn', error: err }
+                if (!err?.errType) {
+                    err = {
+                        success: false,
+                        target: sender,
+                        amount,
+                        currency: 'emerald',
+                        errType: 'unknown',
+                        error: err
+                    }
+                }
+
                 await this.bot.ErrorHandler.handleBetError(err);
             });
     }
@@ -158,12 +208,27 @@ class mcBot {
         }
 
         await this.bot.BetService.addBet(sender, amount, 'coin')
-            .then((result) => {
+            .then(async (result) => {
                 // { success: true, target, amount, currency }
+                const botConfig = config.bots[this.index];
+
+                await this.dcBot.sendBetRecordEmbed(botConfig.betRecordChannelID, result.target, result.currency, result.amount, result.returnAmount, result.odds, result.bonusOdds, result.isWin, this.bot.username);
+
                 this.bot.logger.debug(`已完成下注紀錄: ${result.amount} ${result.currency} 來自: ${result.target}`);
             })
             .catch(async (err) => {
                 // { success: false, target, amount, currency, errType: 'spawn', error: err }
+                if (!err?.errType) {
+                    err = {
+                        success: false,
+                        target: sender,
+                        amount,
+                        currency: 'coin',
+                        errType: 'unknown',
+                        error: err
+                    }
+                }
+
                 await this.bot.ErrorHandler.handleBetError(err);
             });
     }
