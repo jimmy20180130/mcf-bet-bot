@@ -39,6 +39,10 @@ async function executeCommand(bot, sender, command, args) {
     const botName = bot._client.uuid.replace(/-/g, '').toLowerCase();
     PlayerStats.get(user.playeruuid, botName); 
 
+    if (sender == botName) {
+        return;
+    }
+
     const config = readConfig();
 
     let isAdmin = false;
