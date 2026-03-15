@@ -1,4 +1,4 @@
-// stop
+// restart
 async function execute(bot, command, sender, args) {
     bot.chat(`/m ${sender} Bot 將在五秒後重新啟動...`);
     setTimeout(() => {
