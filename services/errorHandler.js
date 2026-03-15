@@ -40,7 +40,7 @@ class ErrorHandler {
 
             case 'unknown':
             default:
-                this.bot.logger.error(`處理錯誤失敗: ${amount} ${currency} 給 ${target} (type: ${errType}, reason: ${error.message})`);
+                this.bot.logger.error(`處理錯誤失敗: ${amount} ${currency} 給 ${target} (type: ${errType}, reason: ${error?.message || error?.error?.message || error})`);
                 break;
         }
     }
