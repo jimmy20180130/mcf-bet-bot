@@ -126,23 +126,23 @@
 	"mc": {
 		"cpay": {
 			"usage": "/m {sender} {command} 玩家ID 金額",
-			"success": "/m {sender} 已成功轉帳 {amount} 村民錠給 {target}",
-			"failed": "/m {sender} 轉帳失敗: {error}"
+			"success": "/m {sender} 已成功轉帳 {amount} &6&l村民錠&r&f給 {target}",
+			"failed": "/m {sender} &c&l轉帳失敗: {error}"
 		},
 		"deposit": {
 			"cancel": "/m {sender} 已取消存放模式",
-			"instruction": "/m {sender} 請在 20 秒內將欲存放之資金轉給我，再次輸入指令可取消存放模式",
-			"receivedEmerald": "/m {sender} 已收到您存放的 {amount} 綠寶石，已退出存放模式",
-			"receivedCoin": "/m {sender} 已收到您存放的 {amount} 村民錠，已退出存放模式"
+			"instruction": "/m {sender} 請在 &c20 秒&r內將欲存放之資金轉給我，&c再次輸入&r指令可&c取消&r存放模式",
+			"receivedEmerald": "/m {sender} 已收到您存放的 {amount} &a&l綠寶石&r&f，已退出存放模式",
+			"receivedCoin": "/m {sender} 已收到您存放的 {amount} &6&l村民錠&r&f，已退出存放模式"
 		},
 		"epay": {
 			"usage": "/m {sender} {command} 玩家ID 金額",
-			"success": "/msg {sender} 已成功轉帳 {amount} 綠寶石給 {target}",
-			"failed": "/msg {sender} 轉帳失敗: {error}"
+			"success": "/msg {sender} 已成功轉帳 {amount} &a&l綠寶石&r&f給 {target}",
+			"failed": "/msg {sender} &c&l轉帳失敗: {error}"
 		},
 		"command": {
-			"unexpectedError": "/m {sender} 執行指令時發生不可預期的錯誤，請連繫開發者",
-			"internalError": "/msg {sender} 執行指令 {command} 時發生內部錯誤"
+			"unexpectedError": "/m {sender} &c&l執行指令時發生不可預期的錯誤，請聯繫開發者",
+			"internalError": "/msg {sender} &c&l執行指令 {command} 時發生內部錯誤"
 		},
 		"money": {
 			"unavailable": "無法取得",
@@ -156,26 +156,37 @@
 			"noReward": "/m {sender} 你在此 Bot 沒有簽到獎勵可領取",
 			"streak": "連續簽到 {streak} 天，共簽到 {total} 天",
 			"success": "/m {sender} 簽到成功！你已{streakMsg}",
-			"emeraldFail": "綠寶石失敗: {error}",
-			"coinFail": "村民錠失敗: {error}",
-			"partialError": "/m {sender} 你已{streakMsg}，但轉帳出錯: {errors}"
+			"emeraldFail": "&c&l綠寶石失敗: {error}",
+			"coinFail": "&c&l村民錠失敗: {error}",
+			"partialError": "/m {sender} 你已{streakMsg}，但&c&l轉帳出錯: {errors}"
 		},
 		"stop": {
 			"notice": "/m {sender} Bot 將在五秒後關閉..."
 		},
 		"wallet": {
 			"noBalance": "/m {sender} 你的錢包目前沒有可領取的餘額。",
-			"emeraldFailed": "/m {sender} 領取綠寶石失敗: {error}",
-			"coinFailed": "/m {sender} 領取村民錠失敗: {error}"
+			"emeraldFailed": "/m {sender} &c&l領取綠寶石失敗: {error}",
+			"coinFailed": "/m {sender} &c&l領取村民錠失敗: {error}"
 		}
 	},
 	"service": {
+		"betService": {
+			"spawnTimeout": "等待結果逾時",
+			"spawnFailed": "等待結果失敗: {reason}",
+			"winCommand": "{target} win {payout} {currency}",
+            "cwinCommand": "&3[{time}]&r &f&l{target} &r&f贏得了 &6&l{payout} &f個&6{currency} &7(&f賠率: &e{odds}&7)",
+            "ewinCommand": "&3[{time}]&r &f&l{target} &r&f贏得了 &6&l{payout} &f個&a{currency} &7(&f賠率: &e{odds}&7)",
+            "eloseCommand": "&3[{time}]&r &b&l{target} &c&l未中獎",
+            "closeCommand": "&3[{time}]&r &b&l{target} &c&l未中獎",
+			"redstoneNotFound": "找不到紅石粉",
+			"unsupportedVersion": "不支援的 Minecraft 版本"
+		},
 		"errorHandler": {
 			"refunded": "/m {target} {amount} {currency} 已退回 ({reason})",
-			"refundFailed": "/m {target} {amount} {currency} 退回失敗，請聯繫管理員 ({reason})",
-			"payTimeout": "/m {target} {amount} {currency} 轉帳逾時，請聯繫管理員 (原因: {reason})",
+			"refundFailed": "/m {target} {amount} {currency} &c&l退回失敗，請聯繫管理員 ({reason})",
+			"payTimeout": "/m {target} {amount} {currency} &c&l轉帳逾時，請聯繫管理員 (原因: {reason})",
 			"refundedReason": "/m {target} {amount} {currency} 已退回 (reason: {reason})",
-			"refundFailedReason": "/m {target} {amount} {currency} 退回失敗，請聯繫管理員 (reason: {reason})"
+			"refundFailedReason": "/m {target} {amount} {currency} &c&l退回失敗，請聯繫管理員 (reason: {reason})"
 		}
 	},
 	"common": {
