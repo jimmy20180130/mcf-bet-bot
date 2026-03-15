@@ -74,7 +74,7 @@ consoleInterface.on('line', (input) => {
         // 如果訊息不包含 ":"，則廣播給所有 bot
         if (!message.includes(':')) {
             for (let i = 0; i < mcBots.length; i++) {
-                mcBots[i]?.bot?.sendMsg(message);
+                mcBots[i]?.mcClient?.bot?.sendMsg(message);
             }
             return;
         }
