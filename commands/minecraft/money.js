@@ -1,20 +1,48 @@
 // money
+const { t } = require('../../utils/i18n');
+
+function getAllText(node) {
+    let text = node.text || "";
+    if (node.extra) {
+        for (const child of node.extra) {
+            text += getAllText(child);
+        }
+    }
+    return text;
+}
+
+function addCommas(n) {
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 async function execute(bot, command, sender, args) {
-    const map = bot.scoreboards?.["TAB-Scoreboard"]?.itemsMap;
+    const headerData = bot.tablist.header;
+    if (!headerData) {
+        return bot.sendMsg(t('mc.money.unavailable'));
+    }
 
-    let emeraldRaw = map?.["§2§r"]?.displayName?.text?.match(/＄.*?([\d,]+)元/)?.[1];
-    let emerald = emeraldRaw ? addCommas(parseInt(emeraldRaw.replace(/,/g, ""))) : "無法取得";
+    const fullTabText = getAllText(headerData);
+    
+    // 綠寶石 ＄13,981,583元
+    // 村民錠 16個
+    const emeraldMatch = fullTabText.match(/綠寶石.*?＄([\d,]+)元/);
+    const coinMatch = fullTabText.match(/村民錠\s*?(\d+)個/);
 
-    let coinRaw = map?.["§3§r"]?.displayName?.text?.match(/§f([\d,]+)個/)?.[1];
-    let coin = coinRaw ? addCommas(parseInt(coinRaw.replace(/,/g, ""))) : "無法取得";
+    let emerald = emeraldMatch 
+        ? addCommas(parseInt(emeraldMatch[1].replace(/,/g, ""))) 
+        : t('mc.money.unavailable');
 
-    bot.chat(`/m ${sender} &a&l綠寶石&r&7: &b${emerald} &f個，&6&l村民錠&r&7: &b${coin} &f個`);
-    bot.logger.debug(`${sender} query money: ${emerald} emeralds, ${coin} coins`);
+    let coin = coinMatch 
+        ? addCommas(parseInt(coinMatch[1])) 
+        : t('mc.money.unavailable');
+
+    bot.sendMsg(t('mc.money.summary', { sender, emerald, coin }));
+    bot.logger.debug(`${sender} 查詢餘額: ${emerald} 綠寶石, ${coin} 村民錠`);
 }
 
 module.exports = {
     name: 'money',
-    description: '查看目前 Bot 的餘額',
-    aliases: [],
+    description: '查看目前 Bot 的餘額 (支援廢土伺服器)',
+    aliases: ['bal', 'money'],
     execute
-}
+};
