@@ -1,0 +1,185 @@
+{
+	"dc": {
+		"ping": {
+			"pinging": "Pinging...",
+			"result": "Pong！機器人延遲為 {latency}ms，API 延遲為 {apiLatency}ms。"
+		},
+		"rank": {
+			"notImplemented": "排行榜功能尚未實作"
+		},
+		"settings": {
+			"betUpdated": "已成功更新下注設定",
+			"betUpdateFailed": "更新下注設定時發生錯誤",
+			"channelUpdated": "已成功更新頻道設定",
+			"channelUpdateFailed": "更新頻道設定時發生錯誤",
+			"whitelistNeedAddPlayer": "請提供要加入白名單的玩家名稱",
+			"whitelistAlreadyExists": "玩家 {playerName} 已在白名單中",
+			"whitelistAdded": "已成功將玩家 {playerName} 加入白名單",
+			"whitelistNeedRemovePlayer": "請提供要從白名單移除的玩家名稱",
+			"whitelistNotExists": "玩家 {playerName} 不在白名單中",
+			"whitelistRemoved": "已成功將玩家 {playerName} 從白名單移除",
+			"whitelistBotList": "機器人 {botName} 的白名單: {list}",
+			"whitelistGlobalList": "全域白名單: {list}",
+			"whitelistUpdateFailed": "更新白名單設定時發生錯誤"
+		},
+		"wallet": {
+			"selfNotLinked": "您尚未綁定 Minecraft 帳號",
+			"targetNotFound": "找不到該玩家或該玩家尚未綁定",
+			"noPermission": "你沒有權限執行此錢包操作。",
+			"invalidPlayer": "找不到玩家，請確認玩家名稱或 UUID。",
+			"needAmount": "請至少提供 eamount 或 camount。",
+			"addAmountInvalid": "增加金額必須大於 0。",
+			"removeAmountInvalid": "減少金額必須大於 0",
+			"balanceCannotNegative": "操作後錢包餘額不能小於 0",
+			"setAmountInvalid": "設定金額不能小於 0。",
+			"querySummary": "玩家: {playerId}\nBOT: {botName}\n綠寶石錢包: {emerald}\n村民錠錢包: {coin}",
+			"addSummary": "已增加 {playerId} 在 {botName} 的錢包。\n綠寶石: {emerald}\n村民錠: {coin}",
+			"removeSummary": "已減少 {playerId} 在 {botName} 的錢包。\n綠寶石: {emerald}\n村民錠: {coin}",
+			"setSummary": "已設定 {playerId} 在 {botName} 的錢包。\n綠寶石: {emerald}\n村民錠: {coin}"
+		},
+		"template": {
+			"nameEmpty": "模板名稱不可為空。",
+			"nameExists": "你已經有名稱為 {templateName} 的模板，請先刪除或改用其他名稱。",
+			"filterError": "模板條件錯誤: {error}",
+			"added": "已新增模板: {templateName}",
+			"notFound": "找不到你建立的模板: {templateName}",
+			"removed": "已刪除模板: {templateName}",
+			"emptyList": "目前沒有可用模板。",
+			"listHeader": "我的模板列表:\n{lines}",
+			"infoName": "模板名稱: {name}",
+			"infoCreator": "建立者: <@{userId}>",
+			"unknownSubcommand": "未知子指令: {subcommand}",
+			"handleError": "處理模板時發生錯誤: {error}",
+			"validationStartAfterEnd": "{currencyName} 的開始時間不能晚於結束時間",
+			"validationMinGreaterThanMax": "{currencyName} 的最小金額不能大於最大金額",
+			"currencyNoCondition": "{label}: 無條件",
+			"currencyTimeRange": "時間 {start} ~ {end}",
+			"currencyAmountRange": "金額 {min} <= x <= {max}",
+			"botLine": "BOT: {bot}",
+			"currencyLine": "{label}: {content}"
+		},
+		"record": {
+			"autocompleteNoMatch": "無符合玩家",
+			"requesterNotLinked": "❌ 您尚未綁定 Minecraft 帳號",
+			"targetNotFound": "❌ 找不到該玩家或該玩家尚未綁定帳號。",
+			"templateNotFound": "❌ 找不到你建立的模板。",
+			"allBots": "所有機器人",
+			"unknownBot": "未知機器人",
+			"statsSimple": "下注金額: {bet} | 下注次數: {count}",
+			"statsDetailed": "下注金額: {bet} | 下注次數: {count}\n贏得金額: {win} | 賭場盈虧: {profit}",
+			"fieldPlayerId": "玩家 ID",
+			"fieldDiscord": "Discord",
+			"fieldQueryBot": "查詢 BOT",
+			"fieldPlayerUuid": "玩家 UUID",
+			"fieldEmeraldPeriod": "綠寶石查詢期間",
+			"fieldEmerald": "綠寶石",
+			"fieldCoinPeriod": "村民錠查詢期間",
+			"fieldCoin": "村民錠",
+			"fieldTemplate": "使用模板",
+			"unbound": "尚未綁定",
+			"rangeStart": "始",
+			"rangeEnd": "末",
+			"embedTitle": "流水查詢",
+			"embedFooter": "Jimmy Bot"
+		},
+		"interaction": {
+			"minecraftData": {
+				"notLinked": "使用者 <@{userId}> 尚未綁定 Minecraft 帳號。",
+				"summary": "使用者: <@{userId}>\nMinecraft ID: {playerId}\nUUID: {uuid}"
+			},
+			"template": {
+				"requesterNotLinked": "❌ 您尚未綁定 Minecraft 帳號。",
+				"targetNotLinked": "❌ 使用者 <@{userId}> 尚未綁定 Minecraft 帳號。",
+				"emptyTemplate": "❌ 你尚未建立模板，請先用 /template add 新增至少一個模板。",
+				"allBots": "所有機器人",
+				"unknownBot": "未知機器人",
+				"stats": "下注金額: {bet} | 下注次數: {count}",
+				"fieldPlayerId": "玩家 ID",
+				"fieldDiscord": "Discord",
+				"fieldQueryBot": "查詢 BOT",
+				"fieldPlayerUuid": "玩家 UUID",
+				"fieldEmeraldPeriod": "綠寶石查詢期間",
+				"fieldEmerald": "綠寶石",
+				"fieldCoinPeriod": "村民錠查詢期間",
+				"fieldCoin": "村民錠",
+				"fieldTemplate": "使用模板",
+				"unbound": "尚未綁定",
+				"rangeStart": "始",
+				"rangeEnd": "末",
+				"embedTitle": "固定條件查詢",
+				"embedDesc": "查詢對象: <@{userId}>",
+				"embedFooter": "Jimmy Bot"
+			}
+		}
+	},
+	"core": {
+		"dcBot": {
+			"commandExecuteError": "執行指令時發生錯誤！",
+			"interactionHandleError": "處理互動時發生錯誤！",
+			"betWinTitle": "{currencyIcon} [中獎] {playerId}",
+			"betWinDescription": "下注{currency} `{amount}` -> `{returnAmount}` (賠率=`{odds}`)",
+			"betLoseTitle": "{currencyIcon} [未中獎] {playerId}",
+			"betLoseDescription": "下注{currency} `{amount}` -> `0` (賠率=`{odds}`)",
+			"betEmbedFooter": "Jimmy Bot"
+		}
+	},
+	"mc": {
+		"cpay": {
+			"usage": "/m {sender} {command} 玩家ID 金額",
+			"success": "/m {sender} 已成功轉帳 {amount} 村民錠給 {target}",
+			"failed": "/m {sender} 轉帳失敗: {error}"
+		},
+		"deposit": {
+			"cancel": "/m {sender} 已取消存放模式",
+			"instruction": "/m {sender} 請在 20 秒內將欲存放之資金轉給我，再次輸入指令可取消存放模式",
+			"receivedEmerald": "/m {sender} 已收到您存放的 {amount} 綠寶石，已退出存放模式",
+			"receivedCoin": "/m {sender} 已收到您存放的 {amount} 村民錠，已退出存放模式"
+		},
+		"epay": {
+			"usage": "/m {sender} {command} 玩家ID 金額",
+			"success": "/msg {sender} 已成功轉帳 {amount} 綠寶石給 {target}",
+			"failed": "/msg {sender} 轉帳失敗: {error}"
+		},
+		"command": {
+			"unexpectedError": "/m {sender} 執行指令時發生不可預期的錯誤，請連繫開發者",
+			"internalError": "/msg {sender} 執行指令 {command} 時發生內部錯誤"
+		},
+		"money": {
+			"unavailable": "無法取得",
+			"summary": "/m {sender} &a&l綠寶石&r&7: &b{emerald} &f個，&6&l村民錠&r&7: &b{coin} &f個"
+		},
+		"restart": {
+			"notice": "/m {sender} Bot 將在五秒後重新啟動..."
+		},
+		"signin": {
+			"alreadySigned": "/m {sender} 你今天在 {botName} 已經簽到過了",
+			"noReward": "/m {sender} 你在此 Bot 沒有簽到獎勵可領取",
+			"streak": "連續簽到 {streak} 天，共簽到 {total} 天",
+			"success": "/m {sender} 簽到成功！你已{streakMsg}",
+			"emeraldFail": "綠寶石失敗: {error}",
+			"coinFail": "村民錠失敗: {error}",
+			"partialError": "/m {sender} 你已{streakMsg}，但轉帳出錯: {errors}"
+		},
+		"stop": {
+			"notice": "/m {sender} Bot 將在五秒後關閉..."
+		},
+		"wallet": {
+			"noBalance": "/m {sender} 你的錢包目前沒有可領取的餘額。",
+			"emeraldFailed": "/m {sender} 領取綠寶石失敗: {error}",
+			"coinFailed": "/m {sender} 領取村民錠失敗: {error}"
+		}
+	},
+	"service": {
+		"errorHandler": {
+			"refunded": "/m {target} {amount} {currency} 已退回 ({reason})",
+			"refundFailed": "/m {target} {amount} {currency} 退回失敗，請聯繫管理員 ({reason})",
+			"payTimeout": "/m {target} {amount} {currency} 轉帳逾時，請聯繫管理員 (原因: {reason})",
+			"refundedReason": "/m {target} {amount} {currency} 已退回 (reason: {reason})",
+			"refundFailedReason": "/m {target} {amount} {currency} 退回失敗，請聯繫管理員 (reason: {reason})"
+		}
+	},
+	"common": {
+		"unknownError": "未知錯誤",
+		"none": "無"
+	}
+}
