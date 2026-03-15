@@ -4,6 +4,7 @@ const BetRecord = require('../models/BetRecord');
 const User = require('../models/User');
 const PlayerStats = require('../models/PlayerStats');
 const Decimal = require('decimal.js');
+const { t } = require('../utils/i18n');
 
 class BetService {
     /**
@@ -114,11 +115,11 @@ class BetService {
                 }, 5000);
             } catch (err) {
                 if (err.data === 'timeout') {
-                    const timeoutError = new Error('等待結果逾時');
+                    const timeoutError = new Error(t('service.betService.spawnTimeout'));
                     timeoutError.code = 'spawnTimeout';
                     reject({ success: false, target, amount, currency, errType: 'spawn', error: timeoutError });
                 } else {
-                    const spawnError = new Error(`等待結果失敗: ${err.data}`);
+                    const spawnError = new Error(t('service.betService.spawnFailed', { reason: err.data }));
                     spawnError.code = 'spawnError';
                     reject({ success: false, target, amount, currency, errType: 'spawn', error: spawnError });
                 }
@@ -129,7 +130,23 @@ class BetService {
                 let totalOdds = odds.plus(bonusodds);
                 let payout = totalOdds.times(amount).floor();
 
-                this.bot.chat(`${target} win ${payout.toNumber()} ${currency}`);
+                if (currency === 'coin') {
+                    this.bot.chat(t('service.betService.cwinCommand', {
+                        time: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+                        target,
+                        payout: payout.toNumber(),
+                        currency: '村民錠',
+                        odds: totalOdds.toFixed(2),
+                    }));
+                } else {
+                    this.bot.chat(t('service.betService.ewinCommand', {
+                        time: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+                        target, 
+                        payout: payout.toNumber(),
+                        currency: '綠寶石',
+                        odds: totalOdds.toFixed(2),
+                    }));
+                }
 
                 try {
                     await this.bot.PayService.pay(target, payout.toNumber(), currency)
@@ -141,7 +158,11 @@ class BetService {
                 resolve({ success: true, target, amount, currency, outcome: 'win' });
 
             } else if (spawnResult.data === 'lose') {
-                this.bot.chat(`${target} lose ${amount} ${currency}`);
+                if (currency === 'coin') {
+                    this.bot.chat(t('service.betService.closeCommand', { time: new Date().toLocaleTimeString('zh-TW', { hour12: false }), target, amount, currency: '村民錠' }));
+                } else {
+                    this.bot.chat(t('service.betService.eloseCommand', { time: new Date().toLocaleTimeString('zh-TW', { hour12: false }), target, amount, currency: '綠寶石' }));
+                }
                 resolve({ success: true, target, amount, currency, outcome: 'lose' });
             }
         });
@@ -155,7 +176,7 @@ class BetService {
             });
 
             if (!block) {
-                const error = new Error('找不到紅石粉');
+                const error = new Error(t('service.betService.redstoneNotFound'));
                 error.code = 'redstoneNotFound';
                 reject(error);
                 return;
@@ -219,7 +240,7 @@ class BetService {
                     insideBlock: false
                 });
             } else {
-                const error = new Error('不支援的 Minecraft 版本');
+                const error = new Error(t('service.betService.unsupportedVersion'));
                 error.code = 'unsupportedVersion';
                 reject(error);
                 return;
