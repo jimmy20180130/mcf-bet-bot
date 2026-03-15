@@ -72,6 +72,11 @@ class BetService {
                 bonusodds: bonusodds.toNumber()
             });
 
+            // resolve({ success: true, target, amount, currency, outcome: 'lose' });
+            result.bonusOdds = bonusodds.toNumber();
+            result.odds = odds.toNumber();
+            result.returnAmount = recordResult;
+
             resolve(result);
 
         } catch (err) {
