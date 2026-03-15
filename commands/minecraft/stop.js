@@ -1,6 +1,8 @@
 // stop
+const { t } = require('../../utils/i18n');
+
 async function execute(bot, command, sender, args) {
-    bot.chat(`/m ${sender} Bot 將在五秒後關閉...`);
+    bot.chat(t('mc.stop.notice', { sender }));
     setTimeout(() => {
         bot.end('stop');
     }, 5000);

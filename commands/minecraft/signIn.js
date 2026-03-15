@@ -3,6 +3,7 @@
 const SignIn = require('../../models/SignIn');
 const User = require('../../models/User');
 const PlayerStats = require('../../models/PlayerStats');
+const { t } = require('../../utils/i18n');
 
 async function execute(bot, command, sender, args) {
     const botName = bot._client.uuid.replace(/-/g, '').toLowerCase();
@@ -16,7 +17,7 @@ async function execute(bot, command, sender, args) {
     const hasSignedIn = SignIn.hasSignedInToday(playeruuid, botName);
 
     if (hasSignedIn) {
-        bot.chat(`/m ${sender} 你今天在 ${botName} 已經簽到過了`);
+        bot.chat(t('mc.signin.alreadySigned', { sender, botName }));
         return;
     }
 
@@ -24,7 +25,7 @@ async function execute(bot, command, sender, args) {
     const reward = stats.daily ? JSON.parse(stats.daily) : { e: 0, c: 0 };
 
     if (reward.e === 0 && reward.c === 0) {
-        bot.chat(`/m ${sender} 你在此 Bot 沒有簽到獎勵可領取`);
+        bot.chat(t('mc.signin.noReward', { sender }));
         return;
     }
 
@@ -65,16 +66,20 @@ async function execute(bot, command, sender, args) {
 
     const signInData = SignIn.getSignInData(playeruuid, botName);
 
-    const streakMsg = `連續簽到 ${signInData.streak} 天，共簽到 ${signInData.total} 天`;
+    const streakMsg = t('mc.signin.streak', { streak: signInData.streak, total: signInData.total });
 
     if (payoutResult.emerald && payoutResult.coin) {
-        bot.chat(`/m ${sender} 簽到成功！你已${streakMsg}`);
+        bot.chat(t('mc.signin.success', { sender, streakMsg }));
     } else {
         let errorParts = [];
-        if (!payoutResult.emerald) errorParts.push(`綠寶石失敗: ${payoutResult.emeraldError.error.message.slice(0, 30)}`);
-        if (!payoutResult.coin) errorParts.push(`村民錠失敗: ${payoutResult.coinError.error.message.slice(0, 30)}`);
+        if (!payoutResult.emerald) {
+            errorParts.push(t('mc.signin.emeraldFail', { error: payoutResult.emeraldError.error.message.slice(0, 30) }));
+        }
+        if (!payoutResult.coin) {
+            errorParts.push(t('mc.signin.coinFail', { error: payoutResult.coinError.error.message.slice(0, 30) }));
+        }
 
-        bot.chat(`/m ${sender} 你已${streakMsg}，但轉帳出錯: ${errorParts.join('，')}`);
+        bot.chat(t('mc.signin.partialError', { sender, streakMsg, errors: errorParts.join('，') }));
     }
 }
 

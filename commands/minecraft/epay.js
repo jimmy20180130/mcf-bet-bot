@@ -1,17 +1,19 @@
 // epay
+const { t } = require('../../utils/i18n');
+
 async function execute(bot, command, sender, args) {
     const [target, amount] = args.split(' ');
     if (!target || !amount) {
-        bot.chat(`/m ${sender} ${command} 玩家ID 金額`);
+        bot.chat(t('mc.epay.usage', { sender, command }));
         return;
     }
 
     await bot.PayService.pay(target, amount, 'emerald')
         .then(() => {
-            bot.chat(`/msg ${sender} 已成功轉帳 ${amount} 綠寶石給 ${target}`);
+            bot.chat(t('mc.epay.success', { sender, amount, target }));
         })
         .catch(err => {
-            bot.chat(`/msg ${sender} 轉帳失敗: ${err.message}`);
+            bot.chat(t('mc.epay.failed', { sender, error: err.message }));
         });
 }
 

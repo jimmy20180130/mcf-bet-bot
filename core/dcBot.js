@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const Logger = require('../utils/logger');
 const toml = require('smol-toml');
+const { t } = require('../utils/i18n');
 
 class DcBot {
     constructor() {
@@ -151,7 +152,7 @@ class DcBot {
                 await command.execute(interaction);
             } catch (error) {
                 this.logger.warn(`執行指令時發生錯誤:`, error);
-                const content = '執行指令時發生錯誤！';
+                const content = t('core.dcBot.commandExecuteError');
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content, ephemeral: true });
                 } else {
@@ -190,7 +191,7 @@ class DcBot {
             } catch (error) {
                 this.logger.warn(`執行互動處理時發生錯誤:`, error);
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '處理互動時發生錯誤！', ephemeral: true });
+                    await interaction.reply({ content: t('core.dcBot.interactionHandleError'), ephemeral: true });
                 }
             }
         }
@@ -207,21 +208,30 @@ class DcBot {
         odds = (odds+bonusOdds).toFixed(2);
 
         const winEmbed = new EmbedBuilder()
-            .setTitle(`${currencyIcon} [中獎] ${playerid}`)
-            .setDescription(`下注${currency} \`${addCommas(amount)}\` -> \`${addCommas(returnAmount)}\` (賠率=\`${odds}\`)`)
+            .setTitle(t('core.dcBot.betWinTitle', { currencyIcon, playerId: playerid }))
+            .setDescription(t('core.dcBot.betWinDescription', {
+                currency,
+                amount: addCommas(amount),
+                returnAmount: addCommas(returnAmount),
+                odds
+            }))
             .setColor("#00ff1e")
             .setFooter({
-                text: "Jimmy Bot",
+                text: t('core.dcBot.betEmbedFooter'),
                 iconURL: "https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024",
             })
             .setTimestamp();
 
         const loseEmbed = new EmbedBuilder()
-            .setTitle(`${currencyIcon} [未中獎] ${playerid}`)
-            .setDescription(`下注${currency} \`${addCommas(amount)}\` -> \`0\` (賠率=\`${odds}\`)`)
+            .setTitle(t('core.dcBot.betLoseTitle', { currencyIcon, playerId: playerid }))
+            .setDescription(t('core.dcBot.betLoseDescription', {
+                currency,
+                amount: addCommas(amount),
+                odds
+            }))
             .setColor("#ff0000")
             .setFooter({
-                text: "Jimmy Bot",
+                text: t('core.dcBot.betEmbedFooter'),
                 iconURL: "https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024",
             })
             .setTimestamp();

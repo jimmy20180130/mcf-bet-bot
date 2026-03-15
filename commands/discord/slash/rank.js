@@ -1,4 +1,5 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { tForInteraction } = require('../../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -8,6 +9,6 @@ module.exports = {
             'zh-TW': '查詢排行榜'
         }),
     async execute(interaction) {
-        await interaction.reply('排行榜功能尚未實作');
+        await interaction.reply(tForInteraction(interaction, 'dc.rank.notImplemented'));
     },
 };

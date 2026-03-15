@@ -1,17 +1,19 @@
 // cpay
+const { t } = require('../../utils/i18n');
+
 async function execute(bot, command, sender, args) {
     const [target, amount] = args.split(' ');
     if (!target || !amount) {
-        bot.chat(`/m ${sender} ${command} 玩家ID 金額`);
+        bot.chat(t('mc.cpay.usage', { sender, command }));
         return;
     }
 
     await bot.PayService.pay(target, amount, 'coin')
         .then(() => {
-            bot.chat(`/m ${sender} 已成功轉帳 ${amount} 村民錠給 ${target}`);
+            bot.chat(t('mc.cpay.success', { sender, amount, target }));
         })
         .catch(err => {
-            bot.chat(`/m ${sender} 轉帳失敗: ${err.message}`);
+            bot.chat(t('mc.cpay.failed', { sender, error: err.message }));
         });
 }
 

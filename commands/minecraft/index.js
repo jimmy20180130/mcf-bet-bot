@@ -1,6 +1,7 @@
 const fs = require('fs');
 const User = require('../../models/User');
 const PlayerStats = require('../../models/PlayerStats');
+const { t } = require('../../utils/i18n');
 
 const commandFiles = fs.readdirSync('./commands/minecraft').filter(file => file.endsWith('.js'));
 const commands = new Map();
@@ -29,7 +30,7 @@ async function executeCommand(bot, sender, command, args) {
     }
 
     if (!user) {
-        bot.chat(`/m ${sender} 執行指令時發生不可預期的錯誤，請連繫開發者`);
+        bot.chat(t('mc.command.unexpectedError', { sender }));
         bot.logger.error(`無法找到且無法創建使用者資料: ${sender}`);
         return;
     }
@@ -41,7 +42,7 @@ async function executeCommand(bot, sender, command, args) {
         await cmd.execute(bot, command, sender, args);
     } catch (err) {
         bot.logger.error(`執行指令 ${command} 時發生錯誤: ${err.stack || err}`);
-        bot.chat(`/msg ${sender} 執行指令 ${command} 時發生內部錯誤`);
+        bot.chat(t('mc.command.internalError', { sender, command }));
     }
 }
 

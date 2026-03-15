@@ -3,6 +3,7 @@ const toml = require('smol-toml');
 const fs = require('fs');
 const User = require('../../../models/User');
 const minecraftDataService = require('../../../services/minecraftDataService');
+const { tForInteraction } = require('../../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -272,10 +273,10 @@ async function betSettings(interaction, bot, emax, emin, cmax, cmin, eodds, codd
         if (codds !== null) targetBot.codds = Number(codds);
 
         fs.writeFileSync(`${process.cwd()}/config.toml`, toml.stringify(config));
-        await interaction.editReply({ content: `已成功更新下注設定` });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.betUpdated') });
     } catch (error) {
         console.error(error);
-        await interaction.editReply({ content: `更新下注設定時發生錯誤` });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.betUpdateFailed') });
     }
 }
 
@@ -288,10 +289,10 @@ async function channelSettings(interaction, bot, betChannel, consoleChannel) {
         if (consoleChannel !== null) targetBot.consoleChannelID = String(consoleChannel);
 
         fs.writeFileSync(`${process.cwd()}/config.toml`, toml.stringify(config));
-        await interaction.editReply({ content: `已成功更新頻道設定` });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.channelUpdated') });
     } catch (error) {
         console.error(error);
-        await interaction.editReply({ content: `更新頻道設定時發生錯誤` });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.channelUpdateFailed') });
     }
 }
 
@@ -306,43 +307,60 @@ async function whitelistSettings(interaction, action, playerName, bot) {
         switch (action) {
             case 'add':
                 if (!playerName) {
-                    await interaction.editReply({ content: `請提供要加入白名單的玩家名稱` });
+                    await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.whitelistNeedAddPlayer') });
                     return;
                 }
                 if (targetBot.whitelist.includes(playerName) || globalWhitelist.includes(playerName)) {
-                    await interaction.editReply({ content: `玩家 ${playerName} 已在白名單中` });
+                    await interaction.editReply({
+                        content: tForInteraction(interaction, 'dc.settings.whitelistAlreadyExists', { playerName })
+                    });
                     return;
                 }
                 targetBot.whitelist.push(playerName);
                 fs.writeFileSync(`${process.cwd()}/config.toml`, toml.stringify(config));
-                await interaction.editReply({ content: `已成功將玩家 ${playerName} 加入白名單` });
+                await interaction.editReply({
+                    content: tForInteraction(interaction, 'dc.settings.whitelistAdded', { playerName })
+                });
                 break;
 
             case 'remove':
                 if (!playerName) {
-                    await interaction.editReply({ content: `請提供要從白名單移除的玩家名稱` });
+                    await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.whitelistNeedRemovePlayer') });
                     return;
                 }
                 if (!targetBot.whitelist.includes(playerName)) {
-                    await interaction.editReply({ content: `玩家 ${playerName} 不在白名單中` });
+                    await interaction.editReply({
+                        content: tForInteraction(interaction, 'dc.settings.whitelistNotExists', { playerName })
+                    });
                     return;
                 }
                 targetBot.whitelist = targetBot.whitelist.filter(name => name !== playerName);
                 fs.writeFileSync(`${process.cwd()}/config.toml`, toml.stringify(config));
-                await interaction.editReply({ content: `已成功將玩家 ${playerName} 從白名單移除` });
+                await interaction.editReply({
+                    content: tForInteraction(interaction, 'dc.settings.whitelistRemoved', { playerName })
+                });
                 break;
 
             case 'show':
                 if (bot) {
-                    await interaction.editReply({ content: `機器人 ${targetBot.username} 的白名單: ${targetBot.whitelist ? targetBot.whitelist.join(', ') : '無'}` });
+                    await interaction.editReply({
+                        content: tForInteraction(interaction, 'dc.settings.whitelistBotList', {
+                            botName: targetBot.username,
+                            list: targetBot.whitelist ? targetBot.whitelist.join(', ') : tForInteraction(interaction, 'common.none')
+                        })
+                    });
                 } else {
-                    await interaction.editReply({ content: `全域白名單: ${globalWhitelist.length > 0 ? globalWhitelist.join(', ') : '無'}` });
+                    await interaction.editReply({
+                        content: tForInteraction(interaction, 'dc.settings.whitelistGlobalList', {
+                            list: globalWhitelist.length > 0 ? globalWhitelist.join(', ') : tForInteraction(interaction, 'common.none')
+                        })
+                    });
                 }
 
                 break;
         }
     } catch (error) {
         console.error(error);
-        await interaction.editReply({ content: `更新白名單設定時發生錯誤` });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.whitelistUpdateFailed') });
     }
 }

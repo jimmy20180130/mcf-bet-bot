@@ -1,5 +1,6 @@
 const { ApplicationCommandType, ContextMenuCommandBuilder, MessageFlags } = require('discord.js');
 const User = require('../../../models/User');
+const { tForInteraction } = require('../../../utils/i18n');
 
 module.exports = {
 	data: new ContextMenuCommandBuilder()
@@ -17,18 +18,20 @@ module.exports = {
 
 		if (!userData) {
 			await interaction.reply({
-				content: `使用者 <@${targetUser.id}> 尚未綁定 Minecraft 帳號。`,
+				content: tForInteraction(interaction, 'dc.interaction.minecraftData.notLinked', {
+					userId: targetUser.id
+				}),
 				flags: [MessageFlags.Ephemeral]
 			});
 			return;
 		}
 
 		await interaction.reply({
-			content: [
-				`使用者: <@${targetUser.id}>`,
-				`Minecraft ID: ${userData.playerid}`,
-				`UUID: ${userData.playeruuid}`
-			].join('\n'),
+			content: tForInteraction(interaction, 'dc.interaction.minecraftData.summary', {
+				userId: targetUser.id,
+				playerId: userData.playerid,
+				uuid: userData.playeruuid
+			}),
 			flags: [MessageFlags.Ephemeral]
 		});
 	},

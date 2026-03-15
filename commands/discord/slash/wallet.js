@@ -4,6 +4,7 @@ const PlayerStats = require('../../../models/PlayerStats');
 const fs = require('fs');
 const toml = require('smol-toml');
 const minecraftDataService = require('../../../services/minecraftDataService');
+const { tForInteraction } = require('../../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -281,37 +282,37 @@ async function execute(interaction) {
         } else {
             targetUser = User.getByDiscordId(interaction.user.id);
             if (!targetUser) {
-                await interaction.editReply({ content: '您尚未綁定 Minecraft 帳號' });
+                await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.selfNotLinked') });
                 return;
             }
         }
 
         if (!targetUser) {
-            await interaction.editReply({ content: '找不到該玩家或該玩家尚未綁定' });
+            await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.targetNotFound') });
             return;
         }
 
         const stats = PlayerStats.get(targetUser.playeruuid, botKey);
         await interaction.editReply({
-            content: [
-                `玩家: ${targetUser.playerid}`,
-                `BOT: ${botName}`,
-                `綠寶石錢包: ${stats.emerald || 0}`,
-                `村民錠錢包: ${stats.coin || 0}`
-            ].join('\n')
+            content: tForInteraction(interaction, 'dc.wallet.querySummary', {
+                playerId: targetUser.playerid,
+                botName,
+                emerald: stats.emerald || 0,
+                coin: stats.coin || 0
+            })
         });
         return;
     }
 
     if (!interaction.member?.permissions?.has('Administrator')) {
-        await interaction.editReply({ content: '你沒有權限執行此錢包操作。' });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.noPermission') });
         return;
     }
 
     const playerInput = interaction.options.getString('player');
     const targetUser = await resolveOrCreateUser(playerInput);
     if (!targetUser) {
-        await interaction.editReply({ content: '找不到玩家，請確認玩家名稱或 UUID。' });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.invalidPlayer') });
         return;
     }
 
@@ -319,13 +320,13 @@ async function execute(interaction) {
     const camount = interaction.options.getInteger('camount');
 
     if (eamount === null && camount === null) {
-        await interaction.editReply({ content: '請至少提供 eamount 或 camount。' });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.needAmount') });
         return;
     }
 
     if (subcommand === 'add') {
         if ((eamount !== null && eamount <= 0) || (camount !== null && camount <= 0)) {
-            await interaction.editReply({ content: '增加金額必須大於 0。' });
+            await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.addAmountInvalid') });
             return;
         }
 
@@ -336,18 +337,19 @@ async function execute(interaction) {
 
         const updated = PlayerStats.get(targetUser.playeruuid, botKey);
         await interaction.editReply({
-            content: [
-                `已增加 ${targetUser.playerid} 在 ${botName} 的錢包。`,
-                `綠寶石: ${updated.emerald || 0}`,
-                `村民錠: ${updated.coin || 0}`
-            ].join('\n')
+            content: tForInteraction(interaction, 'dc.wallet.addSummary', {
+                playerId: targetUser.playerid,
+                botName,
+                emerald: updated.emerald || 0,
+                coin: updated.coin || 0
+            })
         });
         return;
     }
 
     if (subcommand === 'remove') {
         if ((eamount !== null && eamount <= 0) || (camount !== null && camount <= 0)) {
-            await interaction.editReply({ content: '減少金額必須大於 0' });
+            await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.removeAmountInvalid') });
             return;
         }
 
@@ -356,7 +358,7 @@ async function execute(interaction) {
         const nextCoin = (current.coin || 0) - (camount || 0);
 
         if (nextEmerald < 0 || nextCoin < 0) {
-            await interaction.editReply({ content: '操作後錢包餘額不能小於 0' });
+            await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.balanceCannotNegative') });
             return;
         }
 
@@ -367,17 +369,18 @@ async function execute(interaction) {
 
         const updated = PlayerStats.get(targetUser.playeruuid, botKey);
         await interaction.editReply({
-            content: [
-                `已減少 ${targetUser.playerid} 在 ${botName} 的錢包。`,
-                `綠寶石: ${updated.emerald || 0}`,
-                `村民錠: ${updated.coin || 0}`
-            ].join('\n')
+            content: tForInteraction(interaction, 'dc.wallet.removeSummary', {
+                playerId: targetUser.playerid,
+                botName,
+                emerald: updated.emerald || 0,
+                coin: updated.coin || 0
+            })
         });
         return;
     }
 
     if ((eamount !== null && eamount < 0) || (camount !== null && camount < 0)) {
-        await interaction.editReply({ content: '設定金額不能小於 0。' });
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.wallet.setAmountInvalid') });
         return;
     }
 
@@ -392,11 +395,12 @@ async function execute(interaction) {
 
     const updated = PlayerStats.get(targetUser.playeruuid, botKey);
     await interaction.editReply({
-        content: [
-            `已設定 ${targetUser.playerid} 在 ${botName} 的錢包。`,
-            `綠寶石: ${updated.emerald || 0}`,
-            `村民錠: ${updated.coin || 0}`
-        ].join('\n')
+        content: tForInteraction(interaction, 'dc.wallet.setSummary', {
+            playerId: targetUser.playerid,
+            botName,
+            emerald: updated.emerald || 0,
+            coin: updated.coin || 0
+        })
     });
 }
 

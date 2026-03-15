@@ -5,6 +5,7 @@ const User = require('../../../models/User');
 const fs = require('fs');
 const toml = require('smol-toml');
 const minecraftDataService = require('../../../services/minecraftDataService');
+const { tForInteraction } = require('../../../utils/i18n');
 
 function parseDate(dateStr) {
     if (!dateStr) return null;
@@ -312,7 +313,9 @@ module.exports = {
                 .map(choice => ({ name: choice.playerid, value: choice.playeruuid }));
                 
             if (mappedChoices.length === 0) {
-                await interaction.respond([{ name: '無符合玩家', value: 'none' }]);
+                await interaction.respond([
+                    { name: tForInteraction(interaction, 'dc.record.autocompleteNoMatch'), value: 'none' }
+                ]);
             } else {
                 await interaction.respond(mappedChoices);
             }
@@ -348,7 +351,7 @@ async function execute(interaction) {
 
     let requestingUser = User.getByDiscordId(interaction.user.id);
     if (!requestingUser) {
-        return interaction.editReply({ content: '❌ 您尚未綁定 Minecraft 帳號' });
+        return interaction.editReply({ content: tForInteraction(interaction, 'dc.record.requesterNotLinked') });
     }
 
     const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
@@ -380,7 +383,7 @@ async function execute(interaction) {
     }
 
     if (!targetUser) {
-        return interaction.editReply({ content: '❌ 找不到該玩家或該玩家尚未綁定帳號。' });
+        return interaction.editReply({ content: tForInteraction(interaction, 'dc.record.targetNotFound') });
     }
 
     let template = null;
@@ -389,17 +392,17 @@ async function execute(interaction) {
         template = RecordTemplate.getByOwnerAndName(interaction.user.id, templateName);
 
         if (!template) {
-            return interaction.editReply({ content: '❌ 找不到你建立的模板。' });
+            return interaction.editReply({ content: tForInteraction(interaction, 'dc.record.templateNotFound') });
         }
 
         botUuid = template.filters?.bot || null;
     }
 
-    let botDisplayName = '所有機器人';
+    let botDisplayName = tForInteraction(interaction, 'dc.record.allBots');
     if (botUuid) {
         const botData = await minecraftDataService.getPlayerId(botUuid);
         const botConfig = config.bots.find(b => b.uuid === botUuid);
-        botDisplayName = botData || botConfig?.username || '未知機器人';
+        botDisplayName = botData || botConfig?.username || tForInteraction(interaction, 'dc.record.unknownBot');
     }
 
     const emRange = parseAmountRange(interaction.options.getString('amount_range'));
@@ -436,43 +439,57 @@ async function execute(interaction) {
         const win = stats.winAmount || 0;
         const count = stats.totalBets || 0;
         if (showDetailed) {
-            return [
-                `下注金額: ${bet} | 下注次數: ${count}`,
-                `贏得金額: ${win} | 賭場盈虧: ${bet - win}`
-            ].join('\n');
+            return tForInteraction(interaction, 'dc.record.statsDetailed', {
+                bet,
+                count,
+                win,
+                profit: bet - win
+            });
         }
-        return `下注金額: ${bet} | 下注次數: ${count}`;
+        return tForInteraction(interaction, 'dc.record.statsSimple', { bet, count });
     }
 
     const imageUrl = `https://minotar.net/helm/${targetUser.playeruuid}/64.png`;
 
     const fields = [
-        { name: '玩家 ID', value: targetUser.playerid, inline: true },
-        { name: 'Discord', value: targetUser.discordid ? `<@${targetUser.discordid}>` : '尚未綁定', inline: true },
-        { name: '查詢 BOT', value: botDisplayName, inline: true },
-        { name: '玩家 UUID', value: targetUser.playeruuid, inline: false }
+        { name: tForInteraction(interaction, 'dc.record.fieldPlayerId'), value: targetUser.playerid, inline: true },
+        {
+            name: tForInteraction(interaction, 'dc.record.fieldDiscord'),
+            value: targetUser.discordid ? `<@${targetUser.discordid}>` : tForInteraction(interaction, 'dc.record.unbound'),
+            inline: true
+        },
+        { name: tForInteraction(interaction, 'dc.record.fieldQueryBot'), value: botDisplayName, inline: true },
+        { name: tForInteraction(interaction, 'dc.record.fieldPlayerUuid'), value: targetUser.playeruuid, inline: false }
     ];
 
     if (emFilters.startTime || emFilters.endTime)
-        fields.push({ name: '綠寶石查詢期間', value: `${emFilters.startTime || '始'} ~ ${emFilters.endTime || '末'}`, inline: false });
+        fields.push({
+            name: tForInteraction(interaction, 'dc.record.fieldEmeraldPeriod'),
+            value: `${emFilters.startTime || tForInteraction(interaction, 'dc.record.rangeStart')} ~ ${emFilters.endTime || tForInteraction(interaction, 'dc.record.rangeEnd')}`,
+            inline: false
+        });
 
-    fields.push({ name: '綠寶石', value: formatStats(emStats, canSeeAdvanced), inline: false });
+    fields.push({ name: tForInteraction(interaction, 'dc.record.fieldEmerald'), value: formatStats(emStats, canSeeAdvanced), inline: false });
 
     if (coinFilters.startTime || coinFilters.endTime)
-        fields.push({ name: '村民錠查詢期間', value: `${coinFilters.startTime || '始'} ~ ${coinFilters.endTime || '末'}`, inline: false });
+        fields.push({
+            name: tForInteraction(interaction, 'dc.record.fieldCoinPeriod'),
+            value: `${coinFilters.startTime || tForInteraction(interaction, 'dc.record.rangeStart')} ~ ${coinFilters.endTime || tForInteraction(interaction, 'dc.record.rangeEnd')}`,
+            inline: false
+        });
 
-    fields.push({ name: '村民錠', value: formatStats(coinStats, canSeeAdvanced), inline: false });
+    fields.push({ name: tForInteraction(interaction, 'dc.record.fieldCoin'), value: formatStats(coinStats, canSeeAdvanced), inline: false });
 
     if (template) {
-        fields.push({ name: '使用模板', value: template.name, inline: false });
+        fields.push({ name: tForInteraction(interaction, 'dc.record.fieldTemplate'), value: template.name, inline: false });
     }
 
     const embed = new EmbedBuilder()
-        .setTitle('流水查詢')
+        .setTitle(tForInteraction(interaction, 'dc.record.embedTitle'))
         .addFields(fields)
         .setColor("#313338")
         .setThumbnail(imageUrl)
-        .setFooter({ text: 'Jimmy Bot', iconURL: 'https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024&format=webp&width=0&height=256' })
+        .setFooter({ text: tForInteraction(interaction, 'dc.record.embedFooter'), iconURL: 'https://cdn.discordapp.com/icons/1173075041030787233/bbf79773eab98fb335edc9282241f9fe.webp?size=1024&format=webp&width=0&height=256' })
         .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });

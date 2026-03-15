@@ -1,6 +1,8 @@
 // restart
+const { t } = require('../../utils/i18n');
+
 async function execute(bot, command, sender, args) {
-    bot.chat(`/m ${sender} Bot 將在五秒後重新啟動...`);
+    bot.chat(t('mc.restart.notice', { sender }));
     setTimeout(() => {
         bot.end('restart');
     }, 5000);

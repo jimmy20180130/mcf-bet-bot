@@ -7,6 +7,7 @@ const mcCommandHandler = require('../commands/minecraft/index');
 const MinecraftDataService = require('../services/minecraftDataService');
 const fs = require('fs');
 const toml = require('smol-toml');
+const { t } = require('../utils/i18n');
 const config = toml.parse(fs.readFileSync(`${process.cwd()}/config.toml`, 'utf-8'));
 
 class mcBot {
@@ -162,7 +163,7 @@ class mcBot {
 
         if (this.bot.depositMode.find(m => m.playerid === sender)) {
             this.bot.depositMode = this.bot.depositMode.filter(m => m.playerid !== sender);
-            this.bot.chat(`/m ${sender} 已收到您存放的 ${amount} 綠寶石，已退出存放模式`);
+            this.bot.chat(t('mc.deposit.receivedEmerald', { sender, amount }));
             this.bot.logger.debug(`${sender} exited deposit mode`);
             return;
         }
@@ -202,7 +203,7 @@ class mcBot {
 
         if (this.bot.depositMode.find(m => m.playerid === sender)) {
             this.bot.depositMode = this.bot.depositMode.filter(m => m.playerid !== sender);
-            this.bot.chat(`/m ${sender} 已收到您存放的 ${amount} 村民錠，已退出存放模式`);
+            this.bot.chat(t('mc.deposit.receivedCoin', { sender, amount }));
             this.bot.logger.debug(`${sender} exited deposit mode`);
             return;
         }

@@ -3,6 +3,7 @@ const fs = require('fs');
 const toml = require('smol-toml');
 const minecraftDataService = require('../../../services/minecraftDataService');
 const RecordTemplate = require('../../../models/RecordTemplate');
+const { tForInteraction } = require('../../../utils/i18n');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -279,20 +280,24 @@ async function execute(interaction) {
     if (subcommand === 'add') {
         const templateName = String(interaction.options.getString('name') || '').trim();
         if (!templateName) {
-            await interaction.editReply({ content: '模板名稱不可為空。' });
+            await interaction.editReply({ content: tForInteraction(interaction, 'dc.template.nameEmpty') });
             return;
         }
 
         const existing = RecordTemplate.getByOwnerAndName(interaction.user.id, templateName);
         if (existing) {
-            await interaction.editReply({ content: `你已經有名稱為 ${templateName} 的模板，請先刪除或改用其他名稱。` });
+            await interaction.editReply({
+                content: tForInteraction(interaction, 'dc.template.nameExists', { templateName })
+            });
             return;
         }
 
         const filters = buildTemplateFilters(interaction);
         const validationError = validateTemplateFilters(filters);
         if (validationError) {
-            await interaction.editReply({ content: `模板條件錯誤: ${validationError}` });
+            await interaction.editReply({
+                content: tForInteraction(interaction, 'dc.template.filterError', { error: validationError })
+            });
             return;
         }
 
@@ -304,7 +309,7 @@ async function execute(interaction) {
 
         await interaction.editReply({
             content: [
-                `已新增模板: ${templateName}`,
+                tForInteraction(interaction, 'dc.template.added', { templateName }),
                 formatTemplateFilters(filters)
             ].join('\n')
         });
@@ -315,18 +320,22 @@ async function execute(interaction) {
         const templateName = String(interaction.options.getString('name') || '').trim();
         const result = RecordTemplate.remove(interaction.user.id, templateName);
         if (!result.changes) {
-            await interaction.editReply({ content: `找不到你建立的模板: ${templateName}` });
+            await interaction.editReply({
+                content: tForInteraction(interaction, 'dc.template.notFound', { templateName })
+            });
             return;
         }
 
-        await interaction.editReply({ content: `已刪除模板: ${templateName}` });
+        await interaction.editReply({
+            content: tForInteraction(interaction, 'dc.template.removed', { templateName })
+        });
         return;
     }
 
     if (subcommand === 'list') {
         const templates = RecordTemplate.listOwn(interaction.user.id);
         if (templates.length === 0) {
-            await interaction.editReply({ content: '目前沒有可用模板。' });
+            await interaction.editReply({ content: tForInteraction(interaction, 'dc.template.emptyList') });
             return;
         }
 
@@ -334,7 +343,9 @@ async function execute(interaction) {
             return `${index + 1}. ${tpl.name}`;
         });
 
-        await interaction.editReply({ content: `我的模板列表:\n${lines.join('\n')}` });
+        await interaction.editReply({
+            content: tForInteraction(interaction, 'dc.template.listHeader', { lines: lines.join('\n') })
+        });
         return;
     }
 
@@ -343,23 +354,29 @@ async function execute(interaction) {
         const template = RecordTemplate.getByOwnerAndName(interaction.user.id, templateName);
 
         if (!template) {
-            await interaction.editReply({ content: `找不到你建立的模板: ${templateName}` });
+            await interaction.editReply({
+                content: tForInteraction(interaction, 'dc.template.notFound', { templateName })
+            });
             return;
         }
 
         await interaction.editReply({
             content: [
-                `模板名稱: ${template.name}`,
-                `建立者: <@${interaction.user.id}>`,
+                tForInteraction(interaction, 'dc.template.infoName', { name: template.name }),
+                tForInteraction(interaction, 'dc.template.infoCreator', { userId: interaction.user.id }),
                 formatTemplateFilters(template.filters)
             ].join('\n')
         });
         return;
     }
 
-    await interaction.editReply({ content: `未知子指令: ${subcommand}` });
+    await interaction.editReply({
+        content: tForInteraction(interaction, 'dc.template.unknownSubcommand', { subcommand })
+    });
     } catch (error) {
-        await interaction.editReply({ content: `處理模板時發生錯誤: ${error.message || error}` });
+        await interaction.editReply({
+            content: tForInteraction(interaction, 'dc.template.handleError', { error: error.message || error })
+        });
     }
 
 
@@ -399,10 +416,10 @@ async function execute(interaction) {
     function validateTemplateFilters(filters) {
         const check = (currencyName, values) => {
             if (values.startTime && values.endTime && values.startTime > values.endTime) {
-                return `${currencyName} 的開始時間不能晚於結束時間`;
+                return tForInteraction(interaction, 'dc.template.validationStartAfterEnd', { currencyName });
             }
             if (values.minAmount !== null && values.maxAmount !== null && values.minAmount > values.maxAmount) {
-                return `${currencyName} 的最小金額不能大於最大金額`;
+                return tForInteraction(interaction, 'dc.template.validationMinGreaterThanMax', { currencyName });
             }
             return null;
         };
@@ -414,22 +431,33 @@ async function execute(interaction) {
         const hasDate = values.startTime || values.endTime;
         const hasAmount = values.minAmount !== null || values.maxAmount !== null;
 
-        if (!hasDate && !hasAmount) return `${label}: 無條件`;
+        if (!hasDate && !hasAmount) {
+            return tForInteraction(interaction, 'dc.template.currencyNoCondition', { label });
+        }
 
         const parts = [];
         if (hasDate) {
-            parts.push(`時間 ${values.startTime || '始'} ~ ${values.endTime || '末'}`);
+            parts.push(tForInteraction(interaction, 'dc.template.currencyTimeRange', {
+                start: values.startTime || '始',
+                end: values.endTime || '末'
+            }));
         }
         if (hasAmount) {
-            parts.push(`金額 ${values.minAmount ?? '-inf'} <= x <= ${values.maxAmount ?? 'inf'}`);
+            parts.push(tForInteraction(interaction, 'dc.template.currencyAmountRange', {
+                min: values.minAmount ?? '-inf',
+                max: values.maxAmount ?? 'inf'
+            }));
         }
-        return `${label}: ${parts.join(' | ')}`;
+        return tForInteraction(interaction, 'dc.template.currencyLine', {
+            label,
+            content: parts.join(' | ')
+        });
     }
 
     function formatTemplateFilters(filters) {
         const safeFilters = filters || {};
         return [
-            `BOT: ${safeFilters.bot || '所有機器人'}`,
+            tForInteraction(interaction, 'dc.template.botLine', { bot: safeFilters.bot || '所有機器人' }),
             formatCurrencyFilters('綠寶石', safeFilters.emerald || {}),
             formatCurrencyFilters('村民錠', safeFilters.coin || {})
         ].join('\n');

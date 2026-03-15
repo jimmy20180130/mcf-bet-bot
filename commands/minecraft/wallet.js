@@ -1,6 +1,7 @@
 // wallet
 const User = require('../../models/User');
 const PlayerStats = require('../../models/PlayerStats');
+const { t } = require('../../utils/i18n');
 
 async function execute(bot, command, sender, args) {
     const user = User.getByPlayerId(sender);
@@ -14,7 +15,7 @@ async function execute(bot, command, sender, args) {
     const stats = PlayerStats.get(user.playeruuid, botName);
 
     if (!stats) {
-        bot.chat(`/m ${sender} 你的錢包目前沒有可領取的餘額`);
+        bot.chat(t('mc.wallet.noBalance', { sender }));
         return;
     }
 
@@ -30,8 +31,8 @@ async function execute(bot, command, sender, args) {
                 PlayerStats.updateWallet(user.playeruuid, botName, { eChange: -userEWallet });
             })
             .catch((err) => {
-                const errorMsg = err.error?.message || '未知錯誤';
-                bot.chat(`/m ${sender} 領取綠寶石失敗: ${errorMsg}`);
+                const errorMsg = err.error?.message || t('common.unknownError');
+                bot.chat(t('mc.wallet.emeraldFailed', { sender, error: errorMsg }));
                 bot.logger.error(`${sender} 領取綠寶石失敗: ${errorMsg}`);
             });
     }
@@ -43,14 +44,14 @@ async function execute(bot, command, sender, args) {
                 PlayerStats.updateWallet(user.playeruuid, botName, { cChange: -userCWallet });
             })
             .catch((err) => {
-                const errorMsg = err.error?.message || '未知錯誤';
-                bot.chat(`/m ${sender} 領取村民錠失敗: ${errorMsg}`);
+                const errorMsg = err.error?.message || t('common.unknownError');
+                bot.chat(t('mc.wallet.coinFailed', { sender, error: errorMsg }));
                 bot.logger.error(`${sender} 領取村民錠失敗: ${errorMsg}`);
             });
     }
 
     if (userEWallet <= 0 && userCWallet <= 0) {
-        bot.chat(`/m ${sender} 你的錢包目前沒有可領取的餘額。`);
+        bot.chat(t('mc.wallet.noBalance', { sender }));
     }
 }
 
