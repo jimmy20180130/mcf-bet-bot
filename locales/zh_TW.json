@@ -7,7 +7,7 @@
 		},
 		"ping": {
 			"pinging": "Pinging...",
-			"result": "Pong！機器人延遲為 {latency}ms，API 延遲為 {apiLatency}ms。"
+			"result": "Pong！機器人延遲為 {latency}ms，API 延遲為 {apiLatency}ms"
 		},
 		"rank": {
 			"notImplemented": "排行榜功能尚未實作"
@@ -27,29 +27,44 @@
 			"whitelistGlobalList": "全域白名單: {list}",
 			"whitelistUpdateFailed": "更新白名單設定時發生錯誤"
 		},
+		"roles": {
+			"noPermission": "你沒有權限執行此操作",
+			"nameRequired": "請提供身份組名稱",
+			"duplicateName": "身份組名稱 {name} 已存在",
+			"added": "已新增身份組 #[{id}] {name}\nDiscord 綁定: {discordRole}\n加成賠率: {bonusodds}\n每日簽到: 綠寶石 {dailyEmerald} / 村民錠 {dailyCoin}",
+			"notFound": "找不到指定的身份組",
+			"rankNotInBot": "該身份組不屬於你指定的 BOT",
+			"cannotRemoveDefault": "不能移除預設身份組（未綁定）",
+			"removed": "已移除身份組 #[{id}] {name}",
+			"noChanges": "未提供任何要修改的內容",
+			"edited": "已更新身份組 #[{id}] {name}\nBOT: {bot}\nDiscord 綁定: {discordRole}\n加成賠率: {bonusodds}\n每日簽到: 綠寶石 {dailyEmerald} / 村民錠 {dailyCoin}",
+			"empty": "目前沒有任何身份組",
+			"detail": "身份組詳細資料\nID: #[{id}]\n名稱: {name}\nBOT: {botName} ({botKey})\nDiscord 綁定: {discordRole}\n加成賠率: {bonusodds}\n每日簽到: 綠寶石 {dailyEmerald} / 村民錠 {dailyCoin}",
+			"listHeader": "身份組列表:\n{content}"
+		},
 		"wallet": {
 			"selfNotLinked": "您尚未綁定 Minecraft 帳號",
 			"targetNotFound": "找不到該玩家或該玩家尚未綁定",
-			"noPermission": "你沒有權限執行此錢包操作。",
-			"invalidPlayer": "找不到玩家，請確認玩家名稱或 UUID。",
-			"needAmount": "請至少提供 eamount 或 camount。",
-			"addAmountInvalid": "增加金額必須大於 0。",
+			"noPermission": "你沒有權限執行此錢包操作",
+			"invalidPlayer": "找不到玩家，請確認玩家名稱或 UUID",
+			"needAmount": "請至少提供 eamount 或 camount",
+			"addAmountInvalid": "增加金額必須大於 0",
 			"removeAmountInvalid": "減少金額必須大於 0",
 			"balanceCannotNegative": "操作後錢包餘額不能小於 0",
-			"setAmountInvalid": "設定金額不能小於 0。",
+			"setAmountInvalid": "設定金額不能小於 0",
 			"querySummary": "玩家: {playerId}\nBOT: {botName}\n綠寶石錢包: {emerald}\n村民錠錢包: {coin}",
-			"addSummary": "已增加 {playerId} 在 {botName} 的錢包。\n綠寶石: {emerald}\n村民錠: {coin}",
-			"removeSummary": "已減少 {playerId} 在 {botName} 的錢包。\n綠寶石: {emerald}\n村民錠: {coin}",
-			"setSummary": "已設定 {playerId} 在 {botName} 的錢包。\n綠寶石: {emerald}\n村民錠: {coin}"
+			"addSummary": "已增加 {playerId} 在 {botName} 的錢包\n綠寶石: {emerald}\n村民錠: {coin}",
+			"removeSummary": "已減少 {playerId} 在 {botName} 的錢包\n綠寶石: {emerald}\n村民錠: {coin}",
+			"setSummary": "已設定 {playerId} 在 {botName} 的錢包\n綠寶石: {emerald}\n村民錠: {coin}"
 		},
 		"template": {
-			"nameEmpty": "模板名稱不可為空。",
-			"nameExists": "你已經有名稱為 {templateName} 的模板，請先刪除或改用其他名稱。",
+			"nameEmpty": "模板名稱不可為空",
+			"nameExists": "你已經有名稱為 {templateName} 的模板，請先刪除或改用其他名稱",
 			"filterError": "模板條件錯誤: {error}",
 			"added": "已新增模板: {templateName}",
 			"notFound": "找不到你建立的模板: {templateName}",
 			"removed": "已刪除模板: {templateName}",
-			"emptyList": "目前沒有可用模板。",
+			"emptyList": "目前沒有可用模板",
 			"listHeader": "我的模板列表:\n{lines}",
 			"infoName": "模板名稱: {name}",
 			"infoCreator": "建立者: <@{userId}>",
@@ -65,9 +80,9 @@
 		},
 		"record": {
 			"autocompleteNoMatch": "無符合玩家",
-			"requesterNotLinked": "❌ 您尚未綁定 Minecraft 帳號",
-			"targetNotFound": "❌ 找不到該玩家或該玩家尚未綁定帳號。",
-			"templateNotFound": "❌ 找不到你建立的模板。",
+			"requesterNotLinked": "您尚未綁定 Minecraft 帳號",
+			"targetNotFound": "找不到該玩家或該玩家尚未綁定帳號",
+			"templateNotFound": "找不到你建立的模板",
 			"allBots": "所有機器人",
 			"unknownBot": "未知機器人",
 			"statsSimple": "下注金額: {bet} | 下注次數: {count}",
@@ -89,13 +104,13 @@
 		},
 		"interaction": {
 			"minecraftData": {
-				"notLinked": "使用者 <@{userId}> 尚未綁定 Minecraft 帳號。",
+				"notLinked": "使用者 <@{userId}> 尚未綁定 Minecraft 帳號",
 				"summary": "使用者: <@{userId}>\nMinecraft ID: {playerId}\nUUID: {uuid}"
 			},
 			"template": {
-				"requesterNotLinked": "❌ 您尚未綁定 Minecraft 帳號。",
-				"targetNotLinked": "❌ 使用者 <@{userId}> 尚未綁定 Minecraft 帳號。",
-				"emptyTemplate": "❌ 你尚未建立模板，請先用 /template add 新增至少一個模板。",
+				"requesterNotLinked": "您尚未綁定 Minecraft 帳號",
+				"targetNotLinked": "使用者 <@{userId}> 尚未綁定 Minecraft 帳號",
+				"emptyTemplate": "你尚未建立模板，請先用 /template add 新增至少一個模板",
 				"allBots": "所有機器人",
 				"unknownBot": "未知機器人",
 				"stats": "下注金額: {bet} | 下注次數: {count}",
@@ -169,7 +184,7 @@
 			"notice": "/m {sender} Bot 將在五秒後關閉..."
 		},
 		"wallet": {
-			"noBalance": "/m {sender} 你的錢包目前沒有可領取的餘額。",
+			"noBalance": "/m {sender} 你的錢包目前沒有可領取的餘額",
 			"emeraldFailed": "/m {sender} &c&l領取綠寶石失敗: {error}",
 			"coinFailed": "/m {sender} &c&l領取村民錠失敗: {error}"
 		},
