@@ -59,6 +59,7 @@ class mcBot {
     }
 
     sendMsg(message) {
+        console.log(123)
         this.chatQueue.push(message);
         if (this.chatQueue.length === 1) {
             this._processChatQueue();
@@ -71,7 +72,7 @@ class mcBot {
         const botConfig = this._getCurrentBotConfig();
 
         try {
-            this.bot.sendMsg(message);
+            this.bot.chat(message);
             if (botConfig?.consoleChannelID) {
                 this.dcBot.sendMsg(botConfig.consoleChannelID, message);
             }
