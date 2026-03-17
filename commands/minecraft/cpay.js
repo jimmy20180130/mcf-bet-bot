@@ -4,16 +4,16 @@ const { t } = require('../../utils/i18n');
 async function execute(bot, command, sender, args) {
     const [target, amount] = args.split(' ');
     if (!target || !amount) {
-        bot.chat(t('mc.cpay.usage', { sender, command }));
+        bot.sendMsg(t('mc.cpay.usage', { sender, command }));
         return;
     }
 
     await bot.PayService.pay(target, amount, 'coin')
         .then(() => {
-            bot.chat(t('mc.cpay.success', { sender, amount, target }));
+            bot.sendMsg(t('mc.cpay.success', { sender, amount, target }));
         })
         .catch(err => {
-            bot.chat(t('mc.cpay.failed', { sender, error: err.message }));
+            bot.sendMsg(t('mc.cpay.failed', { sender, error: err.message }));
         });
 }
 

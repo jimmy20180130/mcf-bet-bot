@@ -118,11 +118,11 @@ class PayService {
             failureEvents.forEach(e => this.bot.once(`chat:${e}`, handlers[e]));
 
             if (currency === 'emerald') {
-                this.bot.chat(`/pay ${target} ${amount}`);
+                this.bot.sendMsg(`/pay ${target} ${amount}`);
             } else if (currency === 'coin') {
-                this.bot.chat(`/cointrans ${target} ${amount}`);
+                this.bot.sendMsg(`/cointrans ${target} ${amount}`);
                 await this.bot.waitForTicks(30) // 2s
-                this.bot.chat(target);
+                this.bot.sendMsg(target);
             }
         });
     }

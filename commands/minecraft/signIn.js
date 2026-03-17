@@ -17,7 +17,7 @@ async function execute(bot, command, sender, args) {
     const hasSignedIn = SignIn.hasSignedInToday(playeruuid, botName);
 
     if (hasSignedIn) {
-        bot.chat(t('mc.signin.alreadySigned', { sender, botName }));
+        bot.sendMsg(t('mc.signin.alreadySigned', { sender, botName }));
         return;
     }
 
@@ -25,7 +25,7 @@ async function execute(bot, command, sender, args) {
     const reward = stats.daily ? JSON.parse(stats.daily) : { e: 0, c: 0 };
 
     if (reward.e === 0 && reward.c === 0) {
-        bot.chat(t('mc.signin.noReward', { sender }));
+        bot.sendMsg(t('mc.signin.noReward', { sender }));
         return;
     }
 
@@ -69,7 +69,7 @@ async function execute(bot, command, sender, args) {
     const streakMsg = t('mc.signin.streak', { streak: signInData.streak, total: signInData.total });
 
     if (payoutResult.emerald && payoutResult.coin) {
-        bot.chat(t('mc.signin.success', { sender, streakMsg }));
+        bot.sendMsg(t('mc.signin.success', { sender, streakMsg }));
     } else {
         let errorParts = [];
         if (!payoutResult.emerald) {
@@ -79,7 +79,7 @@ async function execute(bot, command, sender, args) {
             errorParts.push(t('mc.signin.coinFail', { error: payoutResult.coinError.error.message.slice(0, 30) }));
         }
 
-        bot.chat(t('mc.signin.partialError', { sender, streakMsg, errors: errorParts.join('，') }));
+        bot.sendMsg(t('mc.signin.partialError', { sender, streakMsg, errors: errorParts.join('，') }));
     }
 }
 

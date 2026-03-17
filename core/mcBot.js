@@ -71,7 +71,7 @@ class mcBot {
         const botConfig = this._getCurrentBotConfig();
 
         try {
-            this.bot.chat(message);
+            this.bot.sendMsg(message);
             if (botConfig?.consoleChannelID) {
                 this.dcBot.sendMsg(botConfig.consoleChannelID, message);
             }
@@ -185,7 +185,7 @@ class mcBot {
 
         if (this.bot.depositMode.find(m => m.playerid === sender)) {
             this.bot.depositMode = this.bot.depositMode.filter(m => m.playerid !== sender);
-            this.bot.chat(t('mc.deposit.receivedEmerald', { sender, amount }));
+            this.bot.sendMsg(t('mc.deposit.receivedEmerald', { sender, amount }));
             this.bot.logger.debug(`${sender} exited deposit mode`);
             return;
         }
@@ -226,7 +226,7 @@ class mcBot {
 
         if (this.bot.depositMode.find(m => m.playerid === sender)) {
             this.bot.depositMode = this.bot.depositMode.filter(m => m.playerid !== sender);
-            this.bot.chat(t('mc.deposit.receivedCoin', { sender, amount }));
+            this.bot.sendMsg(t('mc.deposit.receivedCoin', { sender, amount }));
             this.bot.logger.debug(`${sender} exited deposit mode`);
             return;
         }

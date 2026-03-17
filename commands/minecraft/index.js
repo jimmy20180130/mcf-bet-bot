@@ -31,7 +31,7 @@ async function executeCommand(bot, sender, command, args) {
     }
 
     if (!user) {
-        bot.chat(t('mc.command.unexpectedError', { sender }));
+        bot.sendMsg(t('mc.command.unexpectedError', { sender }));
         bot.logger.error(`無法找到且無法創建使用者資料: ${sender}`);
         return;
     }
@@ -66,7 +66,7 @@ async function executeCommand(bot, sender, command, args) {
         await cmd.execute(bot, command, sender, args);
     } catch (err) {
         bot.logger.error(`執行指令 ${command} 時發生錯誤: ${err.stack || err}`);
-        bot.chat(t('mc.command.internalError', { sender, command }));
+        bot.sendMsg(t('mc.command.internalError', { sender, command }));
     }
 }
 

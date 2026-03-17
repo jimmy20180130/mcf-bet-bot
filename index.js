@@ -89,7 +89,7 @@ consoleInterface.on('line', (input) => {
             logger.warn('請輸入要發送的訊息');
             return;
         } else {
-            mcBots[botIndex - 1]?.bot?.chat(messageToSend);
+            mcBots[botIndex - 1]?.mcClient?.bot?.sendMsg(messageToSend);
         }
     }
 });

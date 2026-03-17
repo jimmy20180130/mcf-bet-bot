@@ -14,7 +14,7 @@ class ErrorHandler {
                 await this.bot.PayService.pay(target, amount, currency)
                     .then(() => {
                         this.bot.logger.info(`已退回下注金額: ${amount} ${currency} 給 ${target} (type: ${errType}, reason: ${error.message})`);
-                        this.bot.chat(t('service.errorHandler.refunded', {
+                        this.bot.sendMsg(t('service.errorHandler.refunded', {
                             target,
                             amount,
                             currency,
@@ -23,7 +23,7 @@ class ErrorHandler {
                     })
                     .catch(err => {
                         this.bot.logger.error(`退回下注金額失敗: ${amount} ${currency} 給 ${target} (type: ${errType}, reason: ${error.message}, error: ${err.error.message})`);
-                        this.bot.chat(t('service.errorHandler.refundFailed', {
+                        this.bot.sendMsg(t('service.errorHandler.refundFailed', {
                             target,
                             amount,
                             currency,
@@ -35,7 +35,7 @@ class ErrorHandler {
             case 'pay':
                 if (error.code == 'timeout') {
                     this.bot.logger.error(`轉帳逾時: ${amount} ${currency} 給 ${target} (type: ${errType}, reason: ${error.message})`);
-                    this.bot.chat(t('service.errorHandler.payTimeout', {
+                    this.bot.sendMsg(t('service.errorHandler.payTimeout', {
                         target,
                         amount,
                         currency,
@@ -46,7 +46,7 @@ class ErrorHandler {
                     await this.bot.PayService.pay(target, amount, currency)
                         .then(() => {
                             this.bot.logger.info(`已退回下注金額: ${amount} ${currency} 給 ${target} (type: ${errType}, reason: ${error.message})`);
-                            this.bot.chat(t('service.errorHandler.refundedReason', {
+                            this.bot.sendMsg(t('service.errorHandler.refundedReason', {
                                 target,
                                 amount,
                                 currency,
@@ -55,7 +55,7 @@ class ErrorHandler {
                         })
                         .catch(err => {
                             this.bot.logger.error(`退回下注金額失敗: ${amount} ${currency} 給 ${target} (type: ${errType}, reason: ${error.message}, error: ${err.error.message})`);
-                            this.bot.chat(t('service.errorHandler.refundFailedReason', {
+                            this.bot.sendMsg(t('service.errorHandler.refundFailedReason', {
                                 target,
                                 amount,
                                 currency,

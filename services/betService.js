@@ -153,7 +153,7 @@ class BetService {
                 let payout = totalOdds.times(amount).floor();
 
                 if (currency === 'coin') {
-                    this.bot.chat(t('service.betService.cwinCommand', {
+                    this.bot.sendMsg(t('service.betService.cwinCommand', {
                         time: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
                         target,
                         payout: payout.toNumber(),
@@ -161,7 +161,7 @@ class BetService {
                         odds: totalOdds.toFixed(2),
                     }));
                 } else {
-                    this.bot.chat(t('service.betService.ewinCommand', {
+                    this.bot.sendMsg(t('service.betService.ewinCommand', {
                         time: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
                         target, 
                         payout: payout.toNumber(),
@@ -181,9 +181,9 @@ class BetService {
 
             } else if (spawnResult.data === 'lose') {
                 if (currency === 'coin') {
-                    this.bot.chat(t('service.betService.closeCommand', { time: new Date().toLocaleTimeString('zh-TW', { hour12: false }), target, amount, currency: '村民錠' }));
+                    this.bot.sendMsg(t('service.betService.closeCommand', { time: new Date().toLocaleTimeString('zh-TW', { hour12: false }), target, amount, currency: '村民錠' }));
                 } else {
-                    this.bot.chat(t('service.betService.eloseCommand', { time: new Date().toLocaleTimeString('zh-TW', { hour12: false }), target, amount, currency: '綠寶石' }));
+                    this.bot.sendMsg(t('service.betService.eloseCommand', { time: new Date().toLocaleTimeString('zh-TW', { hour12: false }), target, amount, currency: '綠寶石' }));
                 }
                 resolve({ success: true, target, amount, currency, outcome: 'lose' });
             }

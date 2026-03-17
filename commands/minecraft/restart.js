@@ -2,7 +2,7 @@
 const { t } = require('../../utils/i18n');
 
 async function execute(bot, command, sender, args) {
-    bot.chat(t('mc.restart.notice', { sender }));
+    bot.sendMsg(t('mc.restart.notice', { sender }));
     setTimeout(() => {
         bot.end('restart');
     }, 5000);

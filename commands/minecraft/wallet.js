@@ -15,7 +15,7 @@ async function execute(bot, command, sender, args) {
     const stats = PlayerStats.get(user.playeruuid, botName);
 
     if (!stats) {
-        bot.chat(t('mc.wallet.noBalance', { sender }));
+        bot.sendMsg(t('mc.wallet.noBalance', { sender }));
         return;
     }
 
@@ -32,7 +32,7 @@ async function execute(bot, command, sender, args) {
             })
             .catch((err) => {
                 const errorMsg = err.error?.message || t('common.unknownError');
-                bot.chat(t('mc.wallet.emeraldFailed', { sender, error: errorMsg }));
+                bot.sendMsg(t('mc.wallet.emeraldFailed', { sender, error: errorMsg }));
                 bot.logger.error(`${sender} 領取綠寶石失敗: ${errorMsg}`);
             });
     }
@@ -45,13 +45,13 @@ async function execute(bot, command, sender, args) {
             })
             .catch((err) => {
                 const errorMsg = err.error?.message || t('common.unknownError');
-                bot.chat(t('mc.wallet.coinFailed', { sender, error: errorMsg }));
+                bot.sendMsg(t('mc.wallet.coinFailed', { sender, error: errorMsg }));
                 bot.logger.error(`${sender} 領取村民錠失敗: ${errorMsg}`);
             });
     }
 
     if (userEWallet <= 0 && userCWallet <= 0) {
-        bot.chat(t('mc.wallet.noBalance', { sender }));
+        bot.sendMsg(t('mc.wallet.noBalance', { sender }));
     }
 }
 

@@ -5,14 +5,14 @@ async function execute(bot, command, sender, args) {
     //bot.depositMode = [{playerid: sender, expiresAt: Date.now() + 20000}];
     if (bot.depositMode.find(m => m.playerid === sender)) {
         bot.depositMode = bot.depositMode.filter(m => m.playerid !== sender);
-        bot.chat(t('mc.deposit.cancel', { sender }));
+        bot.sendMsg(t('mc.deposit.cancel', { sender }));
         bot.logger.debug(`${sender} exited deposit mode`);
         return;
     }
 
     bot.depositMode.push({ playerid: sender, expiresAt: Date.now() + 20 * 1000 });
 
-    bot.chat(t('mc.deposit.instruction', { sender }));
+    bot.sendMsg(t('mc.deposit.instruction', { sender }));
     bot.logger.debug(`${sender} entered deposit mode`);
 }
 
