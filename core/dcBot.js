@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const Logger = require('../utils/logger');
 const { readConfig } = require('../services/configService');
+const RoleSyncService = require('../services/roleSyncService');
 const { t } = require('../utils/i18n');
 
 class DcBot {
@@ -14,10 +15,13 @@ class DcBot {
         this.client = new Client({
             intents: [
                 GatewayIntentBits.Guilds,
+                GatewayIntentBits.GuildMembers,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.MessageContent,
             ]
         });
+
+        this.roleSyncService = new RoleSyncService(this.client, this.logger);
     }
 
     _loadConfig() {
@@ -125,12 +129,17 @@ class DcBot {
     }
 
     _setupEvents() {
-        this.client.once(Events.ClientReady, c => {
+        this.client.once(Events.ClientReady, async c => {
             this.logger.info(`已登入為 ${c.user.tag}`);
+            await this.roleSyncService.fullScanAllGuilds();
         });
 
         this.client.on(Events.InteractionCreate, async interaction => {
             await this._handleInteraction(interaction);
+        });
+
+        this.client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+            await this.roleSyncService.handleGuildMemberUpdate(oldMember, newMember);
         });
     }
 
