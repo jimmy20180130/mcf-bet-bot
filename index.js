@@ -38,17 +38,17 @@ consoleInterface.on('line', (input) => {
     const message = input.trim().toLowerCase();
 
     if (message.startsWith('>')) {
-        const command = message.slice(1);
-        const args = command.split(' ').slice(1);
+        const command = message.slice(1).split(' ')[0];
+        const args = message.slice(1).split(' ').slice(1);
 
         switch (command) {
             case 'stop':
                 if (args[0]) {
                     const botIndex = parseInt(args[0]);
-                    if (botIndex >= 0 && botIndex < mcBots.length) {
-                        mcBots[botIndex].stop = true;
-                        if (mcBots[botIndex].bot) {
-                            mcBots[botIndex].bot.end('stop');
+                    if (botIndex-1 >= 0 && botIndex-1 < mcBots.length) {
+                        mcBots[botIndex-1].stop = true;
+                        if (mcBots[botIndex-1].mcClient.bot) {
+                            mcBots[botIndex-1].mcClient.bot.end('stop');
                         }
                     } else {
                         logger.warn(`無效的 bot 索引: ${botIndex}`);
@@ -56,8 +56,8 @@ consoleInterface.on('line', (input) => {
                 } else {
                     logger.warn('正在停止所有 bot...');
                     mcBots.forEach(mc => {
-                        if (mc.bot) {
-                            mc.bot.end('stop');
+                        if (mc.mcClient.bot) {
+                            mc.mcClient.bot.end('stop');
                         }
                         mc.stop = true;
                     });
