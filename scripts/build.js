@@ -5,7 +5,7 @@ async function bundleExecutable() {
     const entryPoint = ['./index.js'];
     const outputDir = 'dist'
     const outputFile = './dist/mcf-bet-bot.exe'
-    const iconPath = './app.ico'
+    const iconPath = './scripts/app.ico'
 
     // Ensure the output directory exists
     fs.mkdirSync(outputDir, { recursive: true });
