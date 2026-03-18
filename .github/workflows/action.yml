@@ -11,15 +11,6 @@ jobs:
     runs-on: windows-latest
     env:
       APP_EXE: dist/mcf-bet-bot.exe
-      APP_ICON: scripts/app.ico
-      APP_FILE_VERSION: 1.0.0.0
-      APP_PRODUCT_VERSION: 1.0.0.0
-      APP_COMPANY_NAME: Jimmy
-      APP_FILE_DESCRIPTION: 廢土對賭機器人 by Jimmy
-      APP_PRODUCT_NAME: mcBet-Bot
-      APP_COPYRIGHT: © 2026 Jimmy
-      APP_ORIGINAL_FILENAME: mcf-bet-bot.exe
-      APP_INTERNAL_NAME: mcf-bet-bot
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -28,19 +19,6 @@ jobs:
       - name: Install UPX
         run: choco install upx -y
       - run: bun scripts/build.js
-
-      - name: Apply Windows metadata
-        run: >
-          bunx rcedit ${{ env.APP_EXE }}
-          --set-icon ${{ env.APP_ICON }}
-          --set-file-version ${{ env.APP_FILE_VERSION }}
-          --set-product-version ${{ env.APP_PRODUCT_VERSION }}
-          --set-version-string CompanyName "${{ env.APP_COMPANY_NAME }}"
-          --set-version-string FileDescription "${{ env.APP_FILE_DESCRIPTION }}"
-          --set-version-string ProductName "${{ env.APP_PRODUCT_NAME }}"
-          --set-version-string LegalCopyright "${{ env.APP_COPYRIGHT }}"
-          --set-version-string OriginalFilename "${{ env.APP_ORIGINAL_FILENAME }}"
-          --set-version-string InternalName "${{ env.APP_INTERNAL_NAME }}"
 
       - name: Pack with UPX
         run: upx --best --lzma ${{ env.APP_EXE }}
