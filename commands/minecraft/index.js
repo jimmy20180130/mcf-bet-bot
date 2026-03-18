@@ -3,8 +3,9 @@ const User = require('../../models/User');
 const PlayerStats = require('../../models/PlayerStats');
 const { t } = require('../../utils/i18n');
 const { readConfig } = require('../../services/configService');
+const path = require('path');
 
-const commandFiles = fs.readdirSync(__dirname).filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync(path.join(__dirname, '../minecraft')).filter(file => file.endsWith('.js'));
 const commands = new Map();
 
 for (const file of commandFiles) {
