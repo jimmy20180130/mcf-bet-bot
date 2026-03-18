@@ -3,7 +3,8 @@
   "module": "index.js",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "rcedit": "^4.0.1"
   },
   "dependencies": {
     "decimal.js": "^10.6.0",
