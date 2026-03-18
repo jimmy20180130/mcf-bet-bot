@@ -15,3 +15,12 @@ jobs:
 
       - run: bun install
       - run: bun run scripts/build.js
+      - name: Archive release
+        run: zip -r release.zip dist
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.run_number }}
+          path: release.zip
+          if-no-files-found: error
