@@ -20,6 +20,8 @@ class mcBot {
             version: '1.21.4'
         };
         this.chatQueue = [];
+        this.autoMessageTimer = null;
+        this.autoMessageCursor = 0;
     }
 
     _getCurrentBotConfig() {
@@ -38,6 +40,18 @@ class mcBot {
             cmin: Number(botConfig?.cmin ?? 1),
             cmax: Number(botConfig?.cmax ?? 10)
         };
+    }
+
+    _getCurrentAutoMessages() {
+        const botConfig = this._getCurrentBotConfig();
+        const rawMessages = Array.isArray(botConfig?.autoMessages) ? botConfig.autoMessages : [];
+
+        return rawMessages
+            .map((entry) => ({
+                message: typeof entry?.message === 'string' ? entry.message.trim() : '',
+                waitSeconds: Number(entry?.waitSeconds)
+            }))
+            .filter(entry => entry.message.length > 0 && Number.isFinite(entry.waitSeconds) && entry.waitSeconds >= 1);
     }
 
     start() {
@@ -92,6 +106,7 @@ class mcBot {
     _onSpawn() {
         // 在 spawn 事件觸發後才能 addChatPattern
         this._addChatPatterns();
+        this._startAutoMessageLoop();
     }
 
     _onMessage(message) {
@@ -121,6 +136,8 @@ class mcBot {
     }
 
     _onEnd(reason) {
+        this._stopAutoMessageLoop();
+
         if (reason == 'stop') {
             this.stop = true;
             this.bot.logger.warn(`Bot 已停止`);
@@ -166,6 +183,42 @@ class mcBot {
                 this.bot.logger.warn(`跳過訊息格式 ${name}: 無法找到處理該訊息格式的函式 ${handler}`);
             }
         });
+    }
+
+    _startAutoMessageLoop() {
+        this._stopAutoMessageLoop();
+        this.autoMessageCursor = 0;
+        this._scheduleNextAutoMessage(1000);
+    }
+
+    _stopAutoMessageLoop() {
+        if (this.autoMessageTimer) {
+            clearTimeout(this.autoMessageTimer);
+            this.autoMessageTimer = null;
+        }
+    }
+
+    _scheduleNextAutoMessage(delayMs) {
+        this._stopAutoMessageLoop();
+
+        this.autoMessageTimer = setTimeout(() => {
+            if (!this.bot) {
+                return;
+            }
+
+            const autoMessages = this._getCurrentAutoMessages();
+            if (autoMessages.length === 0) {
+                this._scheduleNextAutoMessage(15000);
+                return;
+            }
+
+            const currentIndex = this.autoMessageCursor % autoMessages.length;
+            const current = autoMessages[currentIndex];
+            this.autoMessageCursor = currentIndex + 1;
+
+            this.sendMsg(current.message);
+            this._scheduleNextAutoMessage(current.waitSeconds * 1000);
+        }, Math.max(1000, Number(delayMs) || 1000));
     }
 
     _handleCommand(matches) {

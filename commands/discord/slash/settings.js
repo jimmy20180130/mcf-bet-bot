@@ -191,6 +191,77 @@ module.exports = {
                         })
                 )
         )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('advertisement')
+                .setNameLocalizations({
+                    'zh-TW': '自動發話'
+                })
+                .setDescription('Auto message settings')
+                .setDescriptionLocalizations({
+                    'zh-TW': '自動發話設定'
+                })
+                .addStringOption(option =>
+                    option.setName('bot')
+                        .setNameLocalizations({
+                            'zh-TW': '機器人'
+                        })
+                        .setDescription('Bot to manage')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '要選取的機器人'
+                        })
+                        .setRequired(true)
+                        .setAutocomplete(true)
+                )
+                .addStringOption(option =>
+                    option.setName('action')
+                        .setNameLocalizations({
+                            'zh-TW': '動作'
+                        })
+                        .setDescription('Action to perform')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '要執行的動作'
+                        })
+                        .addChoices(
+                            { name: 'add', value: 'add' },
+                            { name: 'edit', value: 'edit' },
+                            { name: 'view', value: 'view' },
+                        )
+                        .setRequired(true)
+                )
+                .addIntegerOption(option =>
+                    option.setName('index')
+                        .setNameLocalizations({
+                            'zh-TW': '編號'
+                        })
+                        .setDescription('Message index (1-based) for edit/view')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '要編輯/查看的訊息編號 (從 1 開始)'
+                        })
+                        .setMinValue(1)
+                )
+                .addStringOption(option =>
+                    option.setName('message')
+                        .setNameLocalizations({
+                            'zh-TW': '訊息'
+                        })
+                        .setDescription('Message content for add/edit')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '新增/編輯的訊息內容'
+                        })
+                )
+                .addIntegerOption(option =>
+                    option.setName('wait')
+                        .setNameLocalizations({
+                            'zh-TW': '等待秒數'
+                        })
+                        .setDescription('Delay seconds after this message (>= 1)')
+                        .setDescriptionLocalizations({
+                            'zh-TW': '此訊息發送後等待秒數 (>= 1)'
+                        })
+                        .setMinValue(1)
+                )
+        )
     ,
 
     async autocomplete(interaction) {
@@ -249,14 +320,40 @@ module.exports = {
                 await whitelistSettings(interaction, action, playerName, whitelistBot);
                 break;
 
+            case 'advertisement':
+                const autoBot = interaction.options.getString('bot');
+                const autoAction = interaction.options.getString('action');
+                const autoIndex = interaction.options.getInteger('index');
+                const autoMessage = interaction.options.getString('message');
+                const autoWait = interaction.options.getInteger('wait');
+                await autoMessageSettings(interaction, autoBot, autoAction, autoIndex, autoMessage, autoWait);
+                break;
+
         }
     },
 };
 
 function getBot(config, botIdentifier) {
     if (typeof botIdentifier === 'number') return config.bots[botIdentifier];
-    const bot = config.bots.find(b => b.username === botIdentifier);
+    const bot = config.bots.find(b =>
+        b.uuid === botIdentifier
+        || b.username === botIdentifier
+        || b.key === botIdentifier
+    );
     return bot || config.bots[0];
+}
+
+function ensureAutoMessages(targetBot) {
+    if (!Array.isArray(targetBot.autoMessages)) {
+        targetBot.autoMessages = [];
+    }
+    return targetBot.autoMessages;
+}
+
+function formatAutoMessageList(messages) {
+    return messages
+        .map((entry, idx) => `${idx + 1}. [${Number(entry.waitSeconds)}s] ${entry.message}`)
+        .join('\n');
 }
 
 async function betSettings(interaction, bot, emax, emin, cmax, cmin, eodds, codds) {
@@ -361,5 +458,113 @@ async function whitelistSettings(interaction, action, playerName, bot) {
     } catch (error) {
         console.error(error);
         await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.whitelistUpdateFailed') });
+    }
+}
+
+async function autoMessageSettings(interaction, bot, action, index, message, waitSeconds) {
+    try {
+        const config = readConfig();
+        const targetBot = getBot(config, bot);
+        const autoMessages = ensureAutoMessages(targetBot);
+
+        switch (action) {
+            case 'add': {
+                if (!message || waitSeconds === null) {
+                    await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.autoMessageNeedAddFields') });
+                    return;
+                }
+
+                autoMessages.push({
+                    message: String(message),
+                    waitSeconds: Number(waitSeconds)
+                });
+                writeConfig(config);
+                await interaction.editReply({
+                    content: tForInteraction(interaction, 'dc.settings.autoMessageAdded', {
+                        index: autoMessages.length,
+                        waitSeconds,
+                        message
+                    })
+                });
+                break;
+            }
+
+            case 'edit': {
+                if (index === null) {
+                    await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.autoMessageNeedEditIndex') });
+                    return;
+                }
+                if (message === null && waitSeconds === null) {
+                    await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.autoMessageNeedEditFields') });
+                    return;
+                }
+
+                const targetIndex = index - 1;
+                if (targetIndex < 0 || targetIndex >= autoMessages.length) {
+                    await interaction.editReply({
+                        content: tForInteraction(interaction, 'dc.settings.autoMessageIndexNotFound', { index })
+                    });
+                    return;
+                }
+
+                if (message !== null) {
+                    autoMessages[targetIndex].message = String(message);
+                }
+                if (waitSeconds !== null) {
+                    autoMessages[targetIndex].waitSeconds = Number(waitSeconds);
+                }
+
+                writeConfig(config);
+                await interaction.editReply({
+                    content: tForInteraction(interaction, 'dc.settings.autoMessageEdited', {
+                        index,
+                        waitSeconds: autoMessages[targetIndex].waitSeconds,
+                        message: autoMessages[targetIndex].message
+                    })
+                });
+                break;
+            }
+
+            case 'view': {
+                if (autoMessages.length === 0) {
+                    await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.autoMessageEmpty') });
+                    return;
+                }
+
+                if (index !== null) {
+                    const targetIndex = index - 1;
+                    const entry = autoMessages[targetIndex];
+                    if (!entry) {
+                        await interaction.editReply({
+                            content: tForInteraction(interaction, 'dc.settings.autoMessageIndexNotFound', { index })
+                        });
+                        return;
+                    }
+
+                    await interaction.editReply({
+                        content: tForInteraction(interaction, 'dc.settings.autoMessageSingle', {
+                            index,
+                            waitSeconds: Number(entry.waitSeconds),
+                            message: entry.message
+                        })
+                    });
+                    return;
+                }
+
+                await interaction.editReply({
+                    content: tForInteraction(interaction, 'dc.settings.autoMessageList', {
+                        list: formatAutoMessageList(autoMessages)
+                    })
+                });
+                break;
+            }
+
+            default:
+                await interaction.editReply({ content: tForInteraction(interaction, 'common.unknownError') });
+                break;
+        }
+    } catch (error) {
+        console.error(error);
+        await interaction.editReply({ content: tForInteraction(interaction, 'dc.settings.autoMessageUpdateFailed') });
     }
 }
