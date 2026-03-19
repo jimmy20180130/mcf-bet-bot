@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const toml = require('smol-toml');
+const toml = require('../node_modules/smol-toml/dist/');
 const Logger = require('../utils/logger');
 
 const logger = new Logger('ConfigService');

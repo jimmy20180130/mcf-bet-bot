@@ -11,6 +11,6 @@
     "discord.js": "^14.22.1",
     "mineflayer": "^4.33.0",
     "moment-timezone": "^0.6.0",
-    "smol-toml": "^1.4.2"
+    "smol-toml": "^1.6.0"
   }
 }
