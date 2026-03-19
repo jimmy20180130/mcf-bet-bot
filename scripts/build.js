@@ -60,10 +60,7 @@ async function bundleExecutable() {
             compile: {
                 target: 'bun-windows-x64',
                 outfile: 'mcf-bet-bot.exe',
-                windows: {
-                    hideConsole: false,
-                    icon: iconPathAbs,
-                },
+                minify: false,
             },
         });
 
