@@ -1,15 +1,13 @@
-const fs = require('fs');
 const User = require('../../models/User');
 const PlayerStats = require('../../models/PlayerStats');
 const { t } = require('../../utils/i18n');
 const { readConfig } = require('../../services/configService');
-const path = require('path');
+const { entries } = require('./manifest');
 
-const commandFiles = fs.readdirSync(path.join(__dirname, '../minecraft')).filter(file => file.endsWith('.js'));
 const commands = new Map();
 
-for (const file of commandFiles) {
-    const command = require(`./${file}`);
+for (const { load } of entries) {
+    const command = load();
     commands.set(command.name, command);
     if (command.aliases) {
         command.aliases.forEach(alias => {

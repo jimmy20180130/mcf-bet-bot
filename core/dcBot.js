@@ -1,16 +1,20 @@
 const { Client, Collection, Events, GatewayIntentBits, REST, Routes, EmbedBuilder, MessageFlags } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
 const Logger = require('../utils/logger');
 const { readConfig } = require('../services/configService');
 const RoleSyncService = require('../services/roleSyncService');
 const { t } = require('../utils/i18n');
+const {
+    slashEntries,
+    interactionEntries,
+    clearModuleCache,
+} = require('../commands/discord/manifest');
 
 class DcBot {
     constructor() {
         this.logger = new Logger('Discord');
         this.commands = new Collection();
         this.interactions = new Collection();
+        this.consoleMessageHandler = null;
 
         this.client = new Client({
             intents: [
@@ -22,6 +26,10 @@ class DcBot {
         });
 
         this.roleSyncService = new RoleSyncService(this.client, this.logger);
+    }
+
+    setConsoleRelayHandler(handler) {
+        this.consoleMessageHandler = typeof handler === 'function' ? handler : null;
     }
 
     _loadConfig() {
@@ -58,14 +66,10 @@ class DcBot {
     }
 
     async _loadSlashCommands() {
-        const commandsPath = path.join(__dirname, '../commands/discord/slash');
-        const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
-        for (const file of commandFiles) {
-            const filePath = path.join(commandsPath, file);
+        for (const { file, load } of slashEntries) {
             try {
-                delete require.cache[require.resolve(filePath)];
-                const command = require(filePath);
+                clearModuleCache(`./slash/${file}`);
+                const command = load();
 
                 if ('data' in command && 'execute' in command) {
                     this.commands.set(command.data.name, command);
@@ -80,14 +84,10 @@ class DcBot {
     }
 
     async _loadInteractions() {
-        const interactionsPath = path.join(__dirname, '../commands/discord/interactions');
-        const interactionFiles = fs.readdirSync(interactionsPath).filter(file => file.endsWith('.js'));
-
-        for (const file of interactionFiles) {
-            const filePath = path.join(interactionsPath, file);
+        for (const { file, load } of interactionEntries) {
             try {
-                delete require.cache[require.resolve(filePath)];
-                const interaction = require(filePath);
+                clearModuleCache(`./interactions/${file}`);
+                const interaction = load();
 
                 if ('name' in interaction && 'execute' in interaction) {
                     this.interactions.set(interaction.name, interaction);
@@ -140,6 +140,37 @@ class DcBot {
 
         this.client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
             await this.roleSyncService.handleGuildMemberUpdate(oldMember, newMember);
+        });
+
+        this.client.on(Events.MessageCreate, async message => {
+            await this._handleConsoleMessageRelay(message);
+        });
+    }
+
+    async _handleConsoleMessageRelay(message) {
+        if (!message || message.author?.bot || !message.channelId) {
+            return;
+        }
+
+        const content = message.content?.trim();
+        if (!content) {
+            return;
+        }
+
+        const config = this._loadConfig();
+        const botConfigs = Array.isArray(config?.bots) ? config.bots : [];
+        const authorName = message.member?.displayName || message.author?.username || 'DiscordUser';
+
+        botConfigs.forEach((botConfig, index) => {
+            if (String(botConfig?.consoleChannelID || '') !== message.channelId) {
+                return;
+            }
+
+            try {
+                this.consoleMessageHandler?.(index, content, authorName);
+            } catch (error) {
+                this.logger.warn(`轉發 Discord 訊息到 Minecraft 失敗 (bot #${index + 1}):`, error);
+            }
         });
     }
 
