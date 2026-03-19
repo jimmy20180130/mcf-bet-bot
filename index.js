@@ -14,6 +14,16 @@ const consoleInterface = rl.createInterface({
 const mcBots = [];
 const dcBot = new DcBot();
 
+dcBot.setConsoleRelayHandler((botIndex, content, authorName) => {
+    const target = mcBots[botIndex]?.mcClient?.bot;
+    if (!target) {
+        logger.warn(`Discord 訊息轉發失敗: 找不到 bot #${botIndex + 1}`);
+        return;
+    }
+
+    target.sendMsg(content);
+});
+
 async function start() {
     const config = readConfig();
     await dcBot.start();
