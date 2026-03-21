@@ -1,3 +1,5 @@
+require('./patch');
+
 const mcBot = require('./core/mcBot');
 const DcBot = require('./core/dcBot');
 const rl = require('readline');
@@ -25,6 +27,7 @@ dcBot.setConsoleRelayHandler((botIndex, content, authorName) => {
 });
 
 async function start() {
+    logger.log('正在啟動 [廢土對賭機器人]')
     const config = readConfig();
     await dcBot.start();
 
