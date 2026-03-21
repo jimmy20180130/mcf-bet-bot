@@ -61,13 +61,22 @@ async function bundleExecutable() {
                 target: 'bun-windows-x64',
                 outfile: 'mcf-bet-bot.exe',
                 minify: false,
+                windows: {
+                title: "廢土對賭機器人",
+                publisher: "jimmy20180130",
+                version: "1.0.0.0",
+                description: "廢土對賭機器人 by Jimmy",
+                copyright: "© 2026 Jimmy",
+                hideConsole: false,
+                icon: iconPath
+            },
             },
         });
 
         console.log(`Executable created at ${outputFileAbs}`);
 
-    await applyWindowsMetadata(outputFileAbs, iconPathAbs);
-    console.log('Windows metadata applied successfully via rcedit.');
+        //await applyWindowsMetadata(outputFileAbs, iconPathAbs);
+        console.log('Windows metadata applied successfully via rcedit.');
 
         const configPath = path.resolve('config.toml');
         const destConfigPath = path.resolve(outputDir, 'config.toml');
@@ -75,7 +84,7 @@ async function bundleExecutable() {
             fs.copyFileSync(configPath, destConfigPath);
             console.log(`Copied config.toml to ${destConfigPath}`);
         } else {
-            console.warn('Warning: config.toml not found. The executable may fail if it requires this file.');
+            console.warn('Warning: config.toml not found.');
         }
     } catch (error) {
         console.error(error);
