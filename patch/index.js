@@ -17,30 +17,22 @@ function walk(dir) {
 
             let relativePath = path.relative(patchRoot, filePath);
             
-            // Normalize slashes for require on Windows (convert \ to /)
             const moduleName = relativePath.split(path.sep).join('/');
             
             try {
                 let originalPath;
                 try {
-                    // Try to resolve as a node_module first
                     originalPath = require.resolve(moduleName);
                 } catch (e) {
-                    // If not a node_module, try to resolve as a local file relative to project root
-                    // process.cwd() is usually the project root when running the app
                     const localPath = path.resolve(process.cwd(), moduleName);
                     if (fs.existsSync(localPath)) {
                         originalPath = require.resolve(localPath);
                     }
                 }
 
-                // If we still don't have an originalPath, it might be a new file that doesn't exist in the original project.
-                // In that case, we can't "patch" the cache for an existing file, but we can still load it
-                // so it's available if other patched files require it relative to themselves.
                 const patchModule = require(filePath);
 
                 if (originalPath) {
-                    // Patch the require cache
                     if (require.cache[originalPath]) {
                         require.cache[originalPath].exports = patchModule;
                         require.cache[originalPath].loaded = true;
@@ -52,17 +44,15 @@ function walk(dir) {
                             exports: patchModule
                         };
                     }
-                    console.log(`[Patch] Applied: ${moduleName} -> ${originalPath}`);
+                    console.log(`[Patch] Patched: ${moduleName} -> ${originalPath}`);
                 } else {
-                    console.log(`[Patch] Loaded new file: ${moduleName}`);
+                    console.log(`[Patch] Loaded: ${moduleName}`);
                 }
             } catch (err) {
-                console.warn(`[Patch] Failed to patch ${moduleName}: ${err.message}`);
+                console.warn(`[Patch] Failed ${moduleName}: ${err.message}`);
             }
         }
     });
 }
 
-console.log('[Patch] Starting automatic patching...');
 walk(patchRoot);
-console.log('[Patch] Completed.');
