@@ -1,5 +1,3 @@
-require('./patch');
-
 const mcBot = require('./core/mcBot');
 const DcBot = require('./core/dcBot');
 const rl = require('readline');

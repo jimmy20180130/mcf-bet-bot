@@ -60,16 +60,15 @@ async function bundleExecutable() {
             compile: {
                 target: 'bun-windows-x64',
                 outfile: 'mcf-bet-bot.exe',
-                minify: false,
                 windows: {
-                title: "廢土對賭機器人",
-                publisher: "jimmy20180130",
-                version: "1.0.0.0",
-                description: "廢土對賭機器人 by Jimmy",
-                copyright: "© 2026 Jimmy",
-                hideConsole: false,
-                icon: iconPath
-            },
+                    title: "廢土對賭機器人",
+                    publisher: "jimmy20180130",
+                    version: "1.0.0.0",
+                    description: "廢土對賭機器人 by Jimmy",
+                    copyright: "© 2026 Jimmy",
+                    hideConsole: false,
+                    icon: iconPath
+                },
             },
         });
 
