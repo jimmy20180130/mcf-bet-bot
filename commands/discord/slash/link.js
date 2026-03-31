@@ -39,6 +39,7 @@ module.exports = {
         } else {
             const playeruuid = await minecraftDataService.getPlayerUuid(playerid);
             try {
+                await User.create({ playeruuid, playerid });
                 await User.linkDiscord(playeruuid, interaction.user.id);
                 await interaction.editReply({ content: tForInteraction(interaction, 'dc.link.success', { playerId: playerid, playerUuid: playeruuid }) });
 

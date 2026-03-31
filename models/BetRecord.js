@@ -4,13 +4,16 @@ const { randomUUID } = require('crypto');
 class BetRecord {
     // odds: 當下的基礎 id
     // bonusodds: 玩家當下的加成 id
-    static create({ playeruuid, bot, playerid = null, currency, amount, result, odds, bonusodds }) {
-        const betuuid = randomUUID().replace(/-/g, '');
+    static create({ betuuid = null, playeruuid, bot, playerid = null, currency, amount, result, odds, bonusodds }) {
+        if (!betuuid) {
+            betuuid = randomUUID().replace(/-/g, '');
+        }
         const stmt = db.query(`
         INSERT INTO betRecords (betuuid, playeruuid, bot, playerid, currency, amount, result, odds, bonusodds)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-        return stmt.run(betuuid, playeruuid, bot, playerid, currency, amount, result, odds, bonusodds);
+        stmt.run(betuuid, playeruuid, bot, playerid, currency, amount, result, odds, bonusodds);
+        return betuuid;
     }
 
     static getStats(filters) {

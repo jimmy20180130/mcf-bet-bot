@@ -1,8 +1,15 @@
 // link
 const { createLinkCode } = require('../../services/linkService');
 const { t } = require('../../utils/i18n');
+const User = require('../../models/User');
 
 async function execute(bot, command, sender, args) {
+    const user = User.getByPlayerId(sender);
+    if (user && user.discordid) {
+        bot.sendMsg(t('mc.link.alreadyLinked', { sender }));
+        return;
+    }
+
     const code = createLinkCode(sender);
 
     if (!code) {

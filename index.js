@@ -6,7 +6,8 @@ const rl = require('readline');
 const Logger = require('./utils/logger');
 const { readConfig } = require('./services/configService');
 const logger = new Logger('Core', true);
-const AuthService = require('./services/authService')
+const WsClient = require('./services/authService');
+const { version } = require('os');
 
 const consoleInterface = rl.createInterface({
     input: process.stdin,
@@ -34,10 +35,18 @@ async function start() {
     for (let i = 0; i < config.bots.length; i++) {
         const mc = new mcBot(config.bots[i], i, dcBot);
         const token = config.bots[i].key
-        const authService = new AuthService(token, mc)
+        const authService = new WsClient({
+            type: 'bet',
+            version: '1.0.0.0',
+            token: token,
+            mcClient: mc,
+        });
         const authResult = await authService.authenticate()
         if (authResult) {
             authService.mcClient.start()
+            if (authService.mcClient.bot) {
+                authService.mcClient.bot.wsClient = authService;
+            }
             mcBots.push(authService);
         } else {
             logger.warn(`auth failed for bot ${i+1}`)

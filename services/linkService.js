@@ -8,7 +8,7 @@ function generateCode() {
 
 function createLinkCode(playerid) {
     const user = User.getByPlayerId(playerid);
-    if (user.discordid) {
+    if (user && user.discordid) {
         return null; // 已綁定
     }
 

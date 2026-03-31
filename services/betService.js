@@ -84,7 +84,7 @@ class BetService {
 
             const recordResult = result.outcome === 'win' ? payout.toNumber() : 0;
 
-            BetRecord.create({
+            const betRecordUuid = BetRecord.create({
                 playeruuid,
                 bot: this.bot._client.uuid.replace(/-/g, '').toLowerCase(),
                 playerid,
